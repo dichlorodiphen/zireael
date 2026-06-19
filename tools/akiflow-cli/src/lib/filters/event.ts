@@ -116,7 +116,7 @@ export function mergeTimeline(
 		if (linkedTaskIds.has(t.id)) continue;
 		const start = new Date(t.datetime);
 		const end = t.duration
-			? new Date(start.getTime() + t.duration * 60_000)
+			? new Date(start.getTime() + t.duration * 1000)
 			: null;
 		result.push({ type: "task", record: t, start, end });
 	}

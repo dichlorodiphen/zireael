@@ -32,6 +32,7 @@ export interface CleanedTaskView {
 	date: string | null;
 	datetime: string | null;
 	duration_min: number | null;
+	duration_seconds: number | null;
 	due_date: string | null;
 	plan_bucket: { unit: "week" | "month"; period: string } | null;
 	overdue: boolean;
@@ -108,7 +109,8 @@ export function toCleanedTaskView(
 		description: t.description,
 		date: t.date,
 		datetime: t.datetime,
-		duration_min: t.duration,
+		duration_min: t.duration == null ? null : t.duration / 60,
+		duration_seconds: t.duration,
 		due_date: t.due_date,
 		plan_bucket: buildPlanBucket(t),
 		overdue: isOverdueTask(t),

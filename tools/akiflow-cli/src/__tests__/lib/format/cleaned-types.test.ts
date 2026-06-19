@@ -94,6 +94,14 @@ describe("toCleanedTaskView — project resolution", () => {
 	});
 });
 
+describe("toCleanedTaskView — duration normalization", () => {
+	test("reports task API seconds as minutes and seconds", () => {
+		const view = toCleanedTaskView(task({ duration: 3600 }), ctx());
+		expect(view.duration_min).toBe(60);
+		expect(view.duration_seconds).toBe(3600);
+	});
+});
+
 describe("toCleanedTaskView — source for gmail tasks", () => {
 	test("flattens doc fields into source object", () => {
 		const t = task({

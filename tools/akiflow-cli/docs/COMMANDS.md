@@ -26,9 +26,21 @@ Create explicit Akiflow record types.
 af create task "Review PR" --date 2026-06-20 --description "Check release notes"
 af create slot "Planning block" --date 2026-06-20 --at 09:00 --duration 1h --task "Draft" --task "Review"
 af create event "Meeting" --date 2026-06-20 --at 13:00 --duration 30m --description "Discuss launch" --location "Office"
+af create event "Rental pickup" --date 2026-06-20 --at 23:55 --duration 45m --description-file rental-details.txt
 ```
 
 `af create event` v1 creates timed, non-recurring Google Calendar events through Akiflow. Attendees, recurrence, conferencing, reminders, all-day events, updates, and deletes are not supported.
+
+### af convert
+
+Convert between Akiflow record surfaces. V1 supports only timed Akiflow tasks to Google Calendar events.
+
+```bash
+af convert tasks --to events --search "Portland trip:" --from 2026-06-19 --until 2026-06-23
+af convert tasks --to events --search "Portland trip:" --from 2026-06-19 --until 2026-06-23 --execute --delete-source
+```
+
+The command dry-runs by default. Mutations require `--execute`; source cleanup also requires `--delete-source`. Use `--until` or `--range-to` for the date-range end because `--to` is the target surface.
 
 ### af do
 
@@ -70,6 +82,7 @@ View calendar with tasks.
 
 ```bash
 af cal --month "2026-02"
+af cal --from 2026-06-19 --to 2026-06-23 --search "Portland trip:" --summary
 ```
 
 ### af block

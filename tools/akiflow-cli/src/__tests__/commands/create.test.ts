@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import * as fs from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createEventCommand, createSlotCommand } from "../../commands/create";
 import * as storage from "../../lib/auth/storage";
 import * as cache from "../../lib/cache";
@@ -370,5 +373,56 @@ describe("create command", () => {
 		);
 
 		consoleLogSpy.mockRestore();
+	});
+
+	it("reads event description from --description-file without shell expansion", async () => {
+		// given
+		const tempDir = mkdtempSync(join(tmpdir(), "af-create-event-"));
+		const descriptionPath = join(tempDir, "description.txt");
+		writeFileSync(descriptionPath, "Credit hold: $300\nBring ID.", "utf-8");
+		readResourceSpy.mockResolvedValue([
+			{
+				id: "cal-123",
+				akiflow_account_id: "akiflow-account-1",
+				akiflow_primary: true,
+				primary: true,
+				connector_id: "google",
+				origin_id: "person@example.com",
+				origin_account_id: "google-account-1",
+				title: "Personal",
+				color: "#7986cb",
+				read_only: false,
+				hidden_at: null,
+				deleted_at: null,
+			},
+		] as any);
+		fetchSpy.mockResolvedValueOnce(
+			new Response(
+				JSON.stringify({
+					success: true,
+					message: null,
+					data: [{ id: "event-123", title: "Rental pickup" }],
+				}),
+				{ status: 200 },
+			),
+		);
+
+		// when
+		await createEventCommand.run!({
+			args: {
+				title: "Rental pickup",
+				date: "2026-06-20",
+				at: "09:00",
+				duration: "30m",
+				"description-file": descriptionPath,
+				json: false,
+				_: [],
+			},
+			rawArgs: [],
+		} as any);
+
+		// then
+		const payload = JSON.parse(fetchSpy.mock.calls[0]?.[1]?.body as string);
+		expect(payload[0].description).toBe("Credit hold: $300\nBring ID.");
 	});
 });

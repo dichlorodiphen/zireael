@@ -155,4 +155,12 @@ describe("mergeTimeline", () => {
 			"t-late",
 		]);
 	});
+
+	test("task durations are interpreted as seconds", () => {
+		const tasks = [
+			{ id: "task", datetime: "2026-05-21T09:00:00Z", duration: 3600 },
+		] as unknown as Task[];
+		const merged = mergeTimeline([], [], tasks);
+		expect(merged[0]?.end?.toISOString()).toBe("2026-05-21T10:00:00.000Z");
+	});
 });

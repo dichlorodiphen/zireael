@@ -62,7 +62,7 @@ describe("block command", () => {
 			title: "Deep Work",
 			datetime: new Date(new Date().setHours(10, 0, 0)).toISOString(),
 			datetime_tz: new Date().toISOString(),
-			duration: 60 * 60 * 1000,
+			duration: 60 * 60,
 			global_created_at: new Date().toISOString(),
 			global_updated_at: new Date().toISOString(),
 		};
@@ -88,7 +88,7 @@ describe("block command", () => {
 		expect(Array.isArray(createdPayload)).toBe(true);
 		expect(createdPayload).toHaveLength(1);
 		expect(createdPayload[0].title).toBe("Deep Work");
-		expect(createdPayload[0].duration).toBe(60 * 60 * 1000);
+		expect(createdPayload[0].duration).toBe(60 * 60);
 		expect(createdPayload[0].calendar_id).toBe("cal1");
 
 		expect(consoleLogSpy).toHaveBeenCalledWith(
@@ -116,7 +116,7 @@ describe("block command", () => {
 			title: "Review",
 			datetime: new Date(new Date().setHours(10, 30, 0)).toISOString(),
 			datetime_tz: new Date().toISOString(),
-			duration: 30 * 60 * 1000,
+			duration: 30 * 60,
 			global_created_at: new Date().toISOString(),
 			global_updated_at: new Date().toISOString(),
 		};
@@ -138,7 +138,7 @@ describe("block command", () => {
 		// then
 		expect(mockUpsertTasks).toHaveBeenCalled();
 		const createdPayload = mockUpsertTasks.mock.calls[0][0];
-		expect(createdPayload[0].duration).toBe(30 * 60 * 1000);
+		expect(createdPayload[0].duration).toBe(30 * 60);
 		expect(consoleLogSpy).toHaveBeenCalledWith(
 			"✓ Time block created successfully",
 		);

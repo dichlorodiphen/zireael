@@ -174,6 +174,74 @@ describe("cal command", () => {
 		consoleLogSpy.mockRestore();
 	});
 
+	it("prints grouped counts with --search and --summary", async () => {
+		// given
+		mockMergedCalendarData({
+			events: [
+				{
+					id: "event-1",
+					calendar_id: "cal1",
+					title: "Portland trip: lunch",
+					description: null,
+					start_time: new Date(2026, 5, 22, 11, 30).toISOString(),
+					end_time: new Date(2026, 5, 22, 12, 30).toISOString(),
+					start_date: null,
+					end_date: null,
+					declined: false,
+					deleted_at: null,
+					hidden: false,
+					status: "confirmed",
+				} as Event,
+				{
+					id: "event-2",
+					calendar_id: "cal1",
+					title: "Unrelated",
+					description: null,
+					start_time: new Date(2026, 5, 22, 13, 0).toISOString(),
+					end_time: new Date(2026, 5, 22, 14, 0).toISOString(),
+					start_date: null,
+					end_date: null,
+					declined: false,
+					deleted_at: null,
+					hidden: false,
+					status: "confirmed",
+				} as Event,
+			],
+			slots: [],
+			tasks: [
+				{
+					id: "task-1",
+					title: "Portland trip: task block",
+					description: null,
+					datetime: new Date(2026, 5, 22, 15, 0).toISOString(),
+					duration: 3600,
+				} as Task,
+			],
+		});
+
+		const consoleLogSpy = spyOn(console, "log");
+
+		// when
+		await cal.run!({
+			args: {
+				free: false,
+				date: "2026-06-22",
+				search: "Portland trip",
+				summary: true,
+				_: [],
+			} as never,
+			rawArgs: [],
+		} as never);
+
+		// then
+		const output = consoleLogSpy.mock.calls.join("\n");
+		expect(output).toContain("event: 1");
+		expect(output).toContain("task: 1");
+		expect(output).toContain("total: 2");
+
+		consoleLogSpy.mockRestore();
+	});
+
 	it("shows free slots header when minimal slots available", async () => {
 		// given
 		// Even with a full day event (00:00-23:59:59), a tiny gap may exist

@@ -71,6 +71,28 @@ const COMMANDS: Record<string, CommandInfo> = {
 			},
 		},
 	},
+	convert: {
+		name: "convert",
+		description: "Convert between Akiflow surfaces",
+		flags: [],
+		subcommands: {
+			tasks: {
+				name: "tasks",
+				description: "Convert Akiflow tasks to another surface",
+				flags: [],
+			},
+			slots: {
+				name: "slots",
+				description: "Convert Akiflow slots to another surface",
+				flags: [],
+			},
+			events: {
+				name: "events",
+				description: "Convert Akiflow events to another surface",
+				flags: [],
+			},
+		},
+	},
 	ls: {
 		name: "ls",
 		description: "List tasks",
@@ -218,6 +240,12 @@ _af_completion() {
     return 0
   fi
 
+  # Complete subcommands for 'convert'
+  if [[ "$main_cmd" == "convert" && $cword -eq 2 ]]; then
+    COMPREPLY=($(compgen -W "tasks slots events" -- "$cur"))
+    return 0
+  fi
+
   # Complete flags for 'add'
   if [[ "$main_cmd" == "add" ]]; then
     COMPREPLY=($(compgen -W "-t --today --tomorrow -d --date -p --project" -- "$cur"))
@@ -232,7 +260,19 @@ _af_completion() {
 
   # Complete common flags for 'create' subcommands
   if [[ "$main_cmd" == "create" ]]; then
-    COMPREPLY=($(compgen -W "--description -d --date --at --duration --calendar --location --task --task-id --task-duration --json" -- "$cur"))
+    COMPREPLY=($(compgen -W "--description --description-file -d --date --at --duration --calendar --location --task --task-id --task-duration --json" -- "$cur"))
+    return 0
+  fi
+
+  # Complete flags for 'convert'
+  if [[ "$main_cmd" == "convert" ]]; then
+    COMPREPLY=($(compgen -W "--to --execute --delete-source --default-duration --include-connector-tasks --calendar --search --from --until --range-to --date --status --connector --priority --json" -- "$cur"))
+    return 0
+  fi
+
+  # Complete flags for 'cal'
+  if [[ "$main_cmd" == "cal" ]]; then
+    COMPREPLY=($(compgen -W "--search --summary --json --raw --today --tomorrow --date --from --to --calendar --connector --no-events --no-tasks --no-slots" -- "$cur"))
     return 0
   fi
 
@@ -260,6 +300,7 @@ _af() {
     'add:Create a new task'
     'do:Mark tasks as complete'
     'create:Create Akiflow tasks, task slots, or calendar events'
+    'convert:Convert between Akiflow surfaces'
     'ls:List tasks'
     'task:Task management commands'
     'project:Project management commands'
@@ -285,6 +326,12 @@ _af() {
     'task:Create an Akiflow task'
     'slot:Create an Akiflow task slot'
     'event:Create a timed Google calendar event through Akiflow'
+  )
+
+  local -a convert_subcommands=(
+    'tasks:Convert Akiflow tasks to another surface'
+    'slots:Convert Akiflow slots to another surface'
+    'events:Convert Akiflow events to another surface'
   )
 
   local -a add_flags=(
@@ -314,6 +361,7 @@ _af() {
 
   local -a create_flags=(
     '--description[Description]:description:'
+    '--description-file[Read description from file]:path:'
     '-d[Natural language date]:date:'
     '--date[Natural language date]:date:'
     '--at[Local start time]:time:'
@@ -323,6 +371,24 @@ _af() {
     '--task[Create a task inside the slot]:task:'
     '--task-id[Existing task id to place inside the slot]:task id:'
     '--task-duration[Duration for newly created slot tasks]:duration:'
+    '--json[Output JSON]'
+  )
+
+  local -a convert_flags=(
+    '--to[Target surface]:surface:'
+    '--execute[Perform conversion]'
+    '--delete-source[Delete source tasks after successful conversion]'
+    '--default-duration[Fallback duration]:duration:'
+    '--include-connector-tasks[Allow connector-backed task sources]'
+    '--calendar[Calendar id]:calendar:'
+    '--search[Search tasks]:query:'
+    '--from[Start date]:date:'
+    '--until[End date]:date:'
+    '--range-to[End date]:date:'
+    '--date[Single day]:date:'
+    '--status[Task status]:status:'
+    '--connector[Connector]:connector:'
+    '--priority[Priority]:priority:'
     '--json[Output JSON]'
   )
 
@@ -355,6 +421,13 @@ _af() {
             _arguments $create_flags
           fi
           ;;
+        convert)
+          if [[ \${#words} -le 3 ]]; then
+            _describe 'subcommand' convert_subcommands
+          else
+            _arguments $convert_flags
+          fi
+          ;;
         completion)
           _describe 'shell' completion_shells
           ;;
@@ -375,6 +448,7 @@ function generateFishCompletion(): string {
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "add" -d "Create a new task"
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "do" -d "Mark tasks as complete"
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "create" -d "Create Akiflow tasks, task slots, or calendar events"
+complete -c af -f -n "__fish_use_subcommand_from_list" -a "convert" -d "Convert between Akiflow surfaces"
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "ls" -d "List tasks"
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "task" -d "Task management commands"
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "project" -d "Project management commands"
@@ -398,8 +472,14 @@ complete -c af -n "__fish_seen_subcommand_from create" -f -a "task" -d "Create a
 complete -c af -n "__fish_seen_subcommand_from create" -f -a "slot" -d "Create an Akiflow task slot"
 complete -c af -n "__fish_seen_subcommand_from create" -f -a "event" -d "Create a timed Google calendar event through Akiflow"
 
+# Convert subcommands
+complete -c af -n "__fish_seen_subcommand_from convert" -f -a "tasks" -d "Convert Akiflow tasks to another surface"
+complete -c af -n "__fish_seen_subcommand_from convert" -f -a "slots" -d "Convert Akiflow slots to another surface"
+complete -c af -n "__fish_seen_subcommand_from convert" -f -a "events" -d "Convert Akiflow events to another surface"
+
 # Create command flags
 complete -c af -n "__fish_seen_subcommand_from create" -l description -d "Description"
+complete -c af -n "__fish_seen_subcommand_from create" -l description-file -d "Read description from file"
 complete -c af -n "__fish_seen_subcommand_from create" -s d -l date -d "Natural language date"
 complete -c af -n "__fish_seen_subcommand_from create" -l at -d "Local start time"
 complete -c af -n "__fish_seen_subcommand_from create" -l duration -d "Duration"
@@ -409,6 +489,23 @@ complete -c af -n "__fish_seen_subcommand_from create" -l task -d "Create a task
 complete -c af -n "__fish_seen_subcommand_from create" -l task-id -d "Existing task id to place inside the slot"
 complete -c af -n "__fish_seen_subcommand_from create" -l task-duration -d "Duration for newly created slot tasks"
 complete -c af -n "__fish_seen_subcommand_from create" -l json -d "Output JSON"
+
+# Convert command flags
+complete -c af -n "__fish_seen_subcommand_from convert" -l to -d "Target surface"
+complete -c af -n "__fish_seen_subcommand_from convert" -l execute -d "Perform conversion"
+complete -c af -n "__fish_seen_subcommand_from convert" -l delete-source -d "Delete source tasks after successful conversion"
+complete -c af -n "__fish_seen_subcommand_from convert" -l default-duration -d "Fallback duration"
+complete -c af -n "__fish_seen_subcommand_from convert" -l include-connector-tasks -d "Allow connector-backed task sources"
+complete -c af -n "__fish_seen_subcommand_from convert" -l calendar -d "Calendar id"
+complete -c af -n "__fish_seen_subcommand_from convert" -s s -l search -d "Search tasks"
+complete -c af -n "__fish_seen_subcommand_from convert" -l from -d "Start date"
+complete -c af -n "__fish_seen_subcommand_from convert" -l until -d "End date"
+complete -c af -n "__fish_seen_subcommand_from convert" -l range-to -d "End date"
+complete -c af -n "__fish_seen_subcommand_from convert" -l date -d "Single day"
+complete -c af -n "__fish_seen_subcommand_from convert" -l status -d "Task status"
+complete -c af -n "__fish_seen_subcommand_from convert" -l connector -d "Connector"
+complete -c af -n "__fish_seen_subcommand_from convert" -l priority -d "Priority"
+complete -c af -n "__fish_seen_subcommand_from convert" -l json -d "Output JSON"
 
 # Add command flags
 complete -c af -n "__fish_seen_subcommand_from add" -s t -l today -d "Schedule task for today"

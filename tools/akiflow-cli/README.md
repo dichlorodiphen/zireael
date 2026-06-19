@@ -163,9 +163,29 @@ af create slot "Admin" --date 2026-06-20 --at 15:00 --duration 45m \
 # Timed Google Calendar event through Akiflow
 af create event "Meeting" --date 2026-06-20 --at 13:00 --duration 30m \
   --description "Discuss launch" --location "Office"
+
+# Avoid shell quoting/expansion issues for long descriptions
+af create event "Rental pickup" --date 2026-06-20 --at 23:55 --duration 45m \
+  --description-file rental-details.txt
 ```
 
-`af create event` v1 supports timed, non-recurring Google Calendar events only. It accepts `title`, `--date`, `--at`, `--duration`, optional `--calendar`, `--description`, `--location`, and `--json`. It does not support attendees, recurrence, conferencing/Meet links, reminders, all-day events, updates, or deletes.
+`af create event` v1 supports timed, non-recurring Google Calendar events only. It accepts `title`, `--date`, `--at`, `--duration`, optional `--calendar`, `--description`, `--description-file`, `--location`, and `--json`. It does not support attendees, recurrence, conferencing/Meet links, reminders, all-day events, updates, or deletes.
+
+### `af convert` — convert between Akiflow surfaces
+
+```bash
+# Dry-run by default: preview task blocks that would become events
+af convert tasks --to events --search "Portland trip:" --from 2026-06-19 --until 2026-06-23
+
+# Execute and then soft-delete native source tasks after all events are created or matched
+af convert tasks --to events --search "Portland trip:" --from 2026-06-19 --until 2026-06-23 \
+  --execute --delete-source
+
+# Supply a fallback duration for selected timed tasks that have no duration
+af convert tasks --to events --search "Trip:" --default-duration 30m --execute
+```
+
+`af convert` v1 implements only `tasks --to events`. It converts timed tasks with `datetime` into Google Calendar events, preserves title and description exactly, detects existing events by `title + start + end + calendar`, and never deletes connector-backed source tasks. Use `--until` or `--range-to` for the date-range end because `--to` names the target surface.
 
 ### `af do` — complete tasks
 
@@ -207,6 +227,7 @@ af cal --today --calendar cal_xyz123
 af cal --today --connector google    # google | microsoft | icloud
 af cal --today --declined            # include declined events
 af cal --today --all-day-only
+af cal --from 2026-06-19 --to 2026-06-23 --search "Portland trip:" --summary
 
 # Output
 af cal --today --json

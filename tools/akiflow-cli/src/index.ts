@@ -7,6 +7,7 @@ import { block } from "./commands/block";
 import { cacheCommand } from "./commands/cache";
 import { cal } from "./commands/cal";
 import { completionCommand } from "./commands/completion";
+import { convertCommand } from "./commands/convert";
 import { createCommand } from "./commands/create";
 import { doCommand } from "./commands/do";
 import { doctorCommand } from "./commands/doctor";
@@ -47,6 +48,7 @@ const main = defineCommand({
 		task: taskCommand,
 		project: projectCommand,
 		completion: completionCommand,
+		convert: convertCommand,
 		create: createCommand,
 		cal,
 		block,

@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { defineCommand } from "citty";
 import { createClient } from "../lib/api/client";
 import type {
@@ -55,7 +56,7 @@ function resolveTime(date: string, timeInput: string): string {
 	return createDateTimeUTC(date, parsedTime.hours, parsedTime.minutes);
 }
 
-function isWritableVisibleCalendar(calendar: Calendar): boolean {
+export function isWritableVisibleCalendar(calendar: Calendar): boolean {
 	return (
 		!calendar.read_only &&
 		calendar.hidden_at == null &&
@@ -63,11 +64,11 @@ function isWritableVisibleCalendar(calendar: Calendar): boolean {
 	);
 }
 
-function isPrimaryCalendar(calendar: Calendar): boolean {
+export function isPrimaryCalendar(calendar: Calendar): boolean {
 	return calendar.akiflow_primary === true || calendar.primary === true;
 }
 
-async function resolveCreateEventCalendar(
+export async function resolveCreateEventCalendar(
 	client: ReturnType<typeof createClient>,
 	calendarId: string | undefined,
 ): Promise<Calendar> {
@@ -103,6 +104,108 @@ async function resolveCreateEventCalendar(
 	}
 
 	return calendar;
+}
+
+export interface BuildEventPayloadInput {
+	title: string;
+	description?: string;
+	startTime: string;
+	endTime: string;
+	timezone?: string | null;
+	calendar: Calendar;
+	location?: string;
+	id?: string;
+	now?: string;
+}
+
+export function buildCreateEventPayload({
+	title,
+	description = "",
+	startTime,
+	endTime,
+	timezone,
+	calendar,
+	location,
+	id,
+	now,
+}: BuildEventPayloadInput): CreateEventPayload {
+	const content: Record<string, unknown> = { sendUpdates: "all" };
+	if (location?.trim()) content.location = location.trim();
+	const timestamp = now ?? new Date().toISOString();
+	const organizerId = calendar.origin_id || null;
+
+	return {
+		title,
+		description,
+		start_time: startTime,
+		end_time: endTime,
+		id: id ?? crypto.randomUUID(),
+		status: "confirmed",
+		start_datetime_tz: timezone ?? getLocalTimezone(),
+		creator_id: organizerId,
+		organizer_id: organizerId,
+		origin_id: null,
+		connector_id: calendar.connector_id,
+		akiflow_account_id: calendar.akiflow_account_id ?? null,
+		origin_account_id: calendar.origin_account_id ?? null,
+		recurring_id: null,
+		origin_recurring_id: null,
+		calendar_id: calendar.id,
+		origin_calendar_id: calendar.origin_id ?? null,
+		original_start_time: null,
+		original_start_date: null,
+		start_date: null,
+		end_date: null,
+		end_datetime_tz: null,
+		origin_updated_at: null,
+		etag: null,
+		content,
+		attendees: [],
+		recurrence: null,
+		recurrence_exception: false,
+		declined: false,
+		read_only: false,
+		hidden: false,
+		url: null,
+		meeting_status: null,
+		meeting_url: null,
+		meeting_icon: null,
+		meeting_solution: null,
+		color: null,
+		calendar_color: calendar.color ?? null,
+		task_id: null,
+		time_slot_id: null,
+		recurrence_exception_delete: false,
+		recurrence_sync_retry: null,
+		errors: null,
+		global_created_at: null,
+		deleted_at: null,
+		global_updated_at: timestamp,
+	};
+}
+
+async function resolveDescription(
+	description: string | undefined,
+	descriptionFile: string | undefined,
+): Promise<string> {
+	if (description && descriptionFile) {
+		console.error(
+			"Error: Use either --description or --description-file, not both",
+		);
+		process.exit(1);
+	}
+
+	if (!descriptionFile) return description ?? "";
+
+	try {
+		return await readFile(descriptionFile, "utf-8");
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		console.error(
+			`Error: Could not read description file "${descriptionFile}": ${message}`,
+		);
+		process.exit(1);
+	}
 }
 
 async function resolveProjectId(projectName: string | undefined) {
@@ -458,6 +561,10 @@ export const createEventCommand = defineCommand({
 			type: "string",
 			description: "Event description",
 		},
+		"description-file": {
+			type: "string",
+			description: "Read event description from a UTF-8 text file",
+		},
 		location: {
 			type: "string",
 			description: "Event location",
@@ -474,7 +581,10 @@ export const createEventCommand = defineCommand({
 		const date = resolveDate(args);
 		const at = args.at as string;
 		const durationInput = args.duration as string;
-		const description = (args.description as string | undefined) ?? "";
+		const description = await resolveDescription(
+			args.description as string | undefined,
+			args["description-file"] as string | undefined,
+		);
 		const location = (args.location as string | undefined)?.trim();
 		const timezone = getLocalTimezone();
 
@@ -492,58 +602,15 @@ export const createEventCommand = defineCommand({
 			client,
 			args.calendar as string | undefined,
 		);
-		const content: Record<string, unknown> = { sendUpdates: "all" };
-		if (location) content.location = location;
-		const now = new Date().toISOString();
-		const organizerId = calendar.origin_id || null;
-		const eventPayload: CreateEventPayload = {
+		const eventPayload = buildCreateEventPayload({
 			title,
 			description,
-			start_time: startTime,
-			end_time: endTime,
-			id: crypto.randomUUID(),
-			status: "confirmed",
-			start_datetime_tz: timezone,
-			creator_id: organizerId,
-			organizer_id: organizerId,
-			origin_id: null,
-			connector_id: calendar.connector_id,
-			akiflow_account_id: calendar.akiflow_account_id ?? null,
-			origin_account_id: calendar.origin_account_id ?? null,
-			recurring_id: null,
-			origin_recurring_id: null,
-			calendar_id: calendar.id,
-			origin_calendar_id: calendar.origin_id ?? null,
-			original_start_time: null,
-			original_start_date: null,
-			start_date: null,
-			end_date: null,
-			end_datetime_tz: null,
-			origin_updated_at: null,
-			etag: null,
-			content,
-			attendees: [],
-			recurrence: null,
-			recurrence_exception: false,
-			declined: false,
-			read_only: false,
-			hidden: false,
-			url: null,
-			meeting_status: null,
-			meeting_url: null,
-			meeting_icon: null,
-			meeting_solution: null,
-			color: null,
-			calendar_color: calendar.color ?? null,
-			task_id: null,
-			time_slot_id: null,
-			recurrence_exception_delete: false,
-			recurrence_sync_retry: null,
-			errors: null,
-			global_created_at: null,
-			deleted_at: null,
-			global_updated_at: now,
-		};
+			startTime,
+			endTime,
+			timezone,
+			calendar,
+			location,
+		});
 
 		const response = await client.createEvents([eventPayload]);
 		const createdEvent = response.data[0];

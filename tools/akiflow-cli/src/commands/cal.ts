@@ -190,6 +190,7 @@ function hasExtendedCalFlags(args: Record<string, unknown>): boolean {
 		return true;
 	if (args.declined || args["all-day-only"] || args["all-day"] === false)
 		return true;
+	if (args.search || args.summary) return true;
 	if (args.json || args.raw) return true;
 	return false;
 }
@@ -225,6 +226,47 @@ function buildEventFilter(
 	if (args["all-day-only"]) f.allDayOnly = true;
 	if (args["all-day"] === false) f.noAllDay = true;
 	return { ...f, range };
+}
+
+function timelineTitle(entry: TimelineEntry): string {
+	if (entry.type === "event")
+		return ((entry.record as Event).title ?? "").toLowerCase();
+	if (entry.type === "time_slot")
+		return ((entry.record as TimeSlot).title ?? "").toLowerCase();
+	return ((entry.record as Task).title ?? "").toLowerCase();
+}
+
+function timelineDescription(entry: TimelineEntry): string {
+	if (entry.type === "event")
+		return ((entry.record as Event).description ?? "").toLowerCase();
+	if (entry.type === "time_slot")
+		return ((entry.record as TimeSlot).description ?? "").toLowerCase();
+	return ((entry.record as Task).description ?? "").toLowerCase();
+}
+
+function filterTimelineBySearch(
+	entries: TimelineEntry[],
+	search: string | undefined,
+): TimelineEntry[] {
+	if (!search) return entries;
+	const query = search.toLowerCase();
+	return entries.filter(
+		(entry) =>
+			timelineTitle(entry).includes(query) ||
+			timelineDescription(entry).includes(query),
+	);
+}
+
+function formatSummary(entries: TimelineEntry[]): string {
+	const counts = { event: 0, time_slot: 0, task: 0 };
+	for (const entry of entries) counts[entry.type] += 1;
+	return [
+		"Calendar summary",
+		`event: ${counts.event}`,
+		`time_slot: ${counts.time_slot}`,
+		`task: ${counts.task}`,
+		`total: ${entries.length}`,
+	].join("\n");
 }
 
 async function runMergedCalendar(args: Record<string, unknown>): Promise<void> {
@@ -291,7 +333,10 @@ async function runMergedCalendar(args: Record<string, unknown>): Promise<void> {
 		return ts >= fromMs && ts <= toMs;
 	});
 
-	const merged = mergeTimeline(eventsFiltered, slotsFiltered, tasksFiltered);
+	const merged = filterTimelineBySearch(
+		mergeTimeline(eventsFiltered, slotsFiltered, tasksFiltered),
+		args.search as string | undefined,
+	);
 
 	if (args.raw) {
 		console.log(
@@ -301,6 +346,27 @@ async function runMergedCalendar(args: Record<string, unknown>): Promise<void> {
 				2,
 			),
 		);
+		return;
+	}
+
+	if (args.summary) {
+		if (args.json) {
+			const counts = { event: 0, time_slot: 0, task: 0 };
+			for (const entry of merged) counts[entry.type] += 1;
+			console.log(
+				JSON.stringify(
+					{
+						result: { counts, total: merged.length },
+						next_cursor: null,
+						errors: [],
+					},
+					null,
+					2,
+				),
+			);
+		} else {
+			console.log(formatSummary(merged));
+		}
 		return;
 	}
 
@@ -391,6 +457,11 @@ export const cal = defineCommand({
 		calendar: { type: "string", description: "Filter by calendar id" },
 		account: { type: "string", description: "Filter by akiflow_account_id" },
 		connector: { type: "string", description: "google | microsoft | icloud" },
+		search: {
+			type: "string",
+			alias: "s",
+			description: "Search title or description",
+		},
 		// citty rewrites --no-events as args.events = false (negation)
 		events: {
 			type: "boolean",
@@ -411,6 +482,7 @@ export const cal = defineCommand({
 			description: "Include all-day events (use --no-all-day to exclude)",
 		},
 		// Output
+		summary: { type: "boolean", description: "Print grouped counts" },
 		json: { type: "boolean", description: "Cleaned JSON" },
 		raw: { type: "boolean", description: "Raw API records JSON" },
 	},

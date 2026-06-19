@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import { createClient } from "../lib/api/client";
 import type { CreateTaskPayload, TimeSlot } from "../lib/api/types";
-import { parseDuration } from "../lib/duration-parser";
+import { parseDuration, parseDurationToSeconds } from "../lib/duration-parser";
 
 interface TimeRange {
 	start: Date;
@@ -179,7 +179,7 @@ export const block = defineCommand({
 				title,
 				datetime: startTime,
 				datetime_tz: new Date().toISOString(),
-				duration: durationMs,
+				duration: parseDurationToSeconds(durationInput),
 				global_created_at: now,
 				global_updated_at: now,
 				...(calendarId && { calendar_id: calendarId }),
@@ -200,11 +200,9 @@ export const block = defineCommand({
 			if (createdTask.datetime) {
 				const taskTime = new Date(createdTask.datetime);
 				const endTime = new Date(
-					taskTime.getTime() + (createdTask.duration ?? 0),
+					taskTime.getTime() + (createdTask.duration ?? 0) * 1000,
 				);
-				const durationMins = Math.round(
-					(createdTask.duration ?? 0) / (60 * 1000),
-				);
+				const durationMins = Math.round((createdTask.duration ?? 0) / 60);
 				const hours = Math.floor(durationMins / 60);
 				const mins = durationMins % 60;
 
