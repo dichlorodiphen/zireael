@@ -19,6 +19,7 @@ Bun-native CLI for managing Akiflow tasks directly from the terminal. TypeScript
 ## Features
 
 - **Task management** — list, add, complete, edit, move, plan, snooze, delete
+- **Explicit create surfaces** — `af create task` for Akiflow tasks, `af create slot` for task slots that can contain linked tasks, and `af create event` for timed Google Calendar events through Akiflow
 - **Rich filtering** — by date range (`--today` / `--this-week` / `--from`/`--to`), bucket (`--bucket week`), status (`--inbox` / `--done` / `--trashed`), connector (`--connector gmail|linear`), tag, project, priority, recurring
 - **Unified calendar** — `af cal` merges events + time-slots + scheduled tasks into one timeline, with date-range filters and per-source toggles (`--no-events` / `--no-tasks` / `--no-slots`)
 - **Stable JSON output** — `--json` emits a cleaned shape we own (status word, plan-bucket as `YYYY-Www`, source object with `thread_id` for Gmail, etc.). `--raw` emits the unmodified API record.
@@ -145,6 +146,27 @@ af add "Focus time" -d "tomorrow 10am" --duration 2h
 af add "SEA-123 implement X" --project "Sealed"
 ```
 
+### `af create` — explicit create surfaces
+
+```bash
+# Akiflow-native task
+af create task "Review PR" --date 2026-06-20 --description "Check release notes"
+
+# True Akiflow task slot, with tasks linked through time_slot_id
+af create slot "Planning block" --date 2026-06-20 --at 09:00 --duration 1h \
+  --task "Draft plan" --task "Review notes" --task-duration 30m
+
+# Link existing tasks into a new slot
+af create slot "Admin" --date 2026-06-20 --at 15:00 --duration 45m \
+  --task-id task-uuid-1 --task-id task-uuid-2
+
+# Timed Google Calendar event through Akiflow
+af create event "Meeting" --date 2026-06-20 --at 13:00 --duration 30m \
+  --description "Discuss launch" --location "Office"
+```
+
+`af create event` v1 supports timed, non-recurring Google Calendar events only. It accepts `title`, `--date`, `--at`, `--duration`, optional `--calendar`, `--description`, `--location`, and `--json`. It does not support attendees, recurrence, conferencing/Meet links, reminders, all-day events, updates, or deletes.
+
 ### `af do` — complete tasks
 
 ```bash
@@ -227,8 +249,10 @@ af project delete "Old Project"
 
 ```bash
 af block 1h "Deep work"
-af block 2h "Meeting prep" --start 14:00
+af block 2h "Meeting prep"
 ```
+
+`af block` chooses the first available slot today. Use `af create slot --date ... --at ... --duration ...` when the start time must be fixed.
 
 ### Shell completions
 
@@ -271,6 +295,7 @@ akiflow-cli/
 │   ├── index.ts                  # CLI entry point
 │   ├── commands/
 │   │   ├── add.ts                # create tasks
+│   │   ├── create.ts             # explicit task / slot / event create surface
 │   │   ├── ls.ts                 # list tasks (extended with date/bucket/status filters)
 │   │   ├── do.ts                 # complete tasks
 │   │   ├── cal.ts                # unified calendar (events + slots + tasks)

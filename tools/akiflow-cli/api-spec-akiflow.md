@@ -366,7 +366,7 @@ GET /v3/calendars?per_page=2500&with_deleted=true&updatedAfter=<ISO8601>
 ## Events API
 
 **Endpoint**: `/v3/events`  
-**Supported Methods**: `GET`
+**Supported Methods**: `GET`, `POST` (create/update sync payload; CLI v1 uses create only)
 
 ### Read Events
 
@@ -381,6 +381,87 @@ GET /v3/events?cursor=<base64>&with_deleted=false&per_page=2500
 ```bash
 GET /v3/events/modifiers?per_page=2500&with_deleted=false
 ```
+
+### Create Timed Event
+
+Captured from Akiflow Web `2.74.24` on 2026-06-19. The web client builds a draft event model, strips `data`, `user_id`, and `fingerprints` in `getEntityForRemote()`, then calls `v3.postEvents(...)`, which is `POST /v3/events`.
+
+CLI support is intentionally narrow: timed, non-recurring Google Calendar events with no attendees, no conference link, no reminders, and no all-day mode.
+
+```bash
+POST /v3/events
+Content-Type: application/json
+```
+
+Request body is an array of event objects:
+
+```json
+[
+  {
+    "title": "Meeting",
+    "description": "Discuss launch",
+    "start_time": "2026-06-20T20:00:00.000Z",
+    "end_time": "2026-06-20T20:30:00.000Z",
+    "id": "<client-generated-uuid>",
+    "status": "confirmed",
+    "start_datetime_tz": "America/Los_Angeles",
+    "creator_id": "<calendar-origin-id>",
+    "organizer_id": "<calendar-origin-id>",
+    "origin_id": null,
+    "connector_id": "google",
+    "akiflow_account_id": "<akiflow-account-id>",
+    "origin_account_id": "<google-account-id>",
+    "recurring_id": null,
+    "origin_recurring_id": null,
+    "calendar_id": "<akiflow-calendar-id>",
+    "origin_calendar_id": "<google-calendar-id>",
+    "original_start_time": null,
+    "original_start_date": null,
+    "start_date": null,
+    "end_date": null,
+    "end_datetime_tz": null,
+    "origin_updated_at": null,
+    "etag": null,
+    "content": {
+      "sendUpdates": "all",
+      "location": "Office"
+    },
+    "attendees": [],
+    "recurrence": null,
+    "recurrence_exception": false,
+    "declined": false,
+    "read_only": false,
+    "hidden": false,
+    "url": null,
+    "meeting_status": null,
+    "meeting_url": null,
+    "meeting_icon": null,
+    "meeting_solution": null,
+    "color": null,
+    "calendar_color": "#7986cb",
+    "task_id": null,
+    "time_slot_id": null,
+    "recurrence_exception_delete": false,
+    "recurrence_sync_retry": null,
+    "errors": null,
+    "global_created_at": null,
+    "deleted_at": null,
+    "global_updated_at": "2026-06-19T22:42:58.271Z"
+  }
+]
+```
+
+Response shape matches other Akiflow API envelopes:
+
+```json
+{
+  "success": true,
+  "message": null,
+  "data": [{ "...": "created event" }]
+}
+```
+
+Cleanup/delete behavior: the web UI deletes events by clearing event fields, setting `status` to `"cancelled"`, soft-deleting with `deleted_at`, then syncing through the same events sync path. CLI v1 does not implement event delete.
 
 ---
 

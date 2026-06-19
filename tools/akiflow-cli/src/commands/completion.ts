@@ -49,6 +49,28 @@ const COMMANDS: Record<string, CommandInfo> = {
 		description: "Mark tasks as complete",
 		flags: [],
 	},
+	create: {
+		name: "create",
+		description: "Create Akiflow tasks, task slots, or calendar events",
+		flags: [],
+		subcommands: {
+			task: {
+				name: "task",
+				description: "Create an Akiflow task",
+				flags: [],
+			},
+			slot: {
+				name: "slot",
+				description: "Create an Akiflow task slot",
+				flags: [],
+			},
+			event: {
+				name: "event",
+				description: "Create a timed Google calendar event through Akiflow",
+				flags: [],
+			},
+		},
+	},
 	ls: {
 		name: "ls",
 		description: "List tasks",
@@ -190,6 +212,12 @@ _af_completion() {
     return 0
   fi
 
+  # Complete subcommands for 'create'
+  if [[ "$main_cmd" == "create" && $cword -eq 2 ]]; then
+    COMPREPLY=($(compgen -W "task slot event" -- "$cur"))
+    return 0
+  fi
+
   # Complete flags for 'add'
   if [[ "$main_cmd" == "add" ]]; then
     COMPREPLY=($(compgen -W "-t --today --tomorrow -d --date -p --project" -- "$cur"))
@@ -199,6 +227,12 @@ _af_completion() {
   # Complete flags for 'ls'
   if [[ "$main_cmd" == "ls" ]]; then
     COMPREPLY=($(compgen -W "--inbox --all --done --project --json --plain" -- "$cur"))
+    return 0
+  fi
+
+  # Complete common flags for 'create' subcommands
+  if [[ "$main_cmd" == "create" ]]; then
+    COMPREPLY=($(compgen -W "--description -d --date --at --duration --calendar --location --task --task-id --task-duration --json" -- "$cur"))
     return 0
   fi
 
@@ -225,6 +259,7 @@ _af() {
   local -a commands=(
     'add:Create a new task'
     'do:Mark tasks as complete'
+    'create:Create Akiflow tasks, task slots, or calendar events'
     'ls:List tasks'
     'task:Task management commands'
     'project:Project management commands'
@@ -244,6 +279,12 @@ _af() {
     'ls:List projects'
     'create:Create a new project'
     'color:Set project color'
+  )
+
+  local -a create_subcommands=(
+    'task:Create an Akiflow task'
+    'slot:Create an Akiflow task slot'
+    'event:Create a timed Google calendar event through Akiflow'
   )
 
   local -a add_flags=(
@@ -271,6 +312,20 @@ _af() {
     'fish:Fish shell completion'
   )
 
+  local -a create_flags=(
+    '--description[Description]:description:'
+    '-d[Natural language date]:date:'
+    '--date[Natural language date]:date:'
+    '--at[Local start time]:time:'
+    '--duration[Duration]:duration:'
+    '--calendar[Calendar id]:calendar:'
+    '--location[Location]:location:'
+    '--task[Create a task inside the slot]:task:'
+    '--task-id[Existing task id to place inside the slot]:task id:'
+    '--task-duration[Duration for newly created slot tasks]:duration:'
+    '--json[Output JSON]'
+  )
+
   _arguments -C \\
     '1: :->command' \\
     '*::arg:->args'
@@ -293,6 +348,13 @@ _af() {
         project)
           _describe 'subcommand' project_subcommands
           ;;
+        create)
+          if [[ \${#words} -le 3 ]]; then
+            _describe 'subcommand' create_subcommands
+          else
+            _arguments $create_flags
+          fi
+          ;;
         completion)
           _describe 'shell' completion_shells
           ;;
@@ -312,6 +374,7 @@ function generateFishCompletion(): string {
 # Main commands
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "add" -d "Create a new task"
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "do" -d "Mark tasks as complete"
+complete -c af -f -n "__fish_use_subcommand_from_list" -a "create" -d "Create Akiflow tasks, task slots, or calendar events"
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "ls" -d "List tasks"
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "task" -d "Task management commands"
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "project" -d "Project management commands"
@@ -329,6 +392,23 @@ complete -c af -n "__fish_seen_subcommand_from task" -f -a "delete" -d "Delete a
 complete -c af -n "__fish_seen_subcommand_from project" -f -a "ls" -d "List projects"
 complete -c af -n "__fish_seen_subcommand_from project" -f -a "create" -d "Create a new project"
 complete -c af -n "__fish_seen_subcommand_from project" -f -a "color" -d "Set project color"
+
+# Create subcommands
+complete -c af -n "__fish_seen_subcommand_from create" -f -a "task" -d "Create an Akiflow task"
+complete -c af -n "__fish_seen_subcommand_from create" -f -a "slot" -d "Create an Akiflow task slot"
+complete -c af -n "__fish_seen_subcommand_from create" -f -a "event" -d "Create a timed Google calendar event through Akiflow"
+
+# Create command flags
+complete -c af -n "__fish_seen_subcommand_from create" -l description -d "Description"
+complete -c af -n "__fish_seen_subcommand_from create" -s d -l date -d "Natural language date"
+complete -c af -n "__fish_seen_subcommand_from create" -l at -d "Local start time"
+complete -c af -n "__fish_seen_subcommand_from create" -l duration -d "Duration"
+complete -c af -n "__fish_seen_subcommand_from create" -l calendar -d "Calendar id"
+complete -c af -n "__fish_seen_subcommand_from create" -l location -d "Location"
+complete -c af -n "__fish_seen_subcommand_from create" -l task -d "Create a task inside the slot"
+complete -c af -n "__fish_seen_subcommand_from create" -l task-id -d "Existing task id to place inside the slot"
+complete -c af -n "__fish_seen_subcommand_from create" -l task-duration -d "Duration for newly created slot tasks"
+complete -c af -n "__fish_seen_subcommand_from create" -l json -d "Output JSON"
 
 # Add command flags
 complete -c af -n "__fish_seen_subcommand_from add" -s t -l today -d "Schedule task for today"

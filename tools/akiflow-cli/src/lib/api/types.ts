@@ -118,6 +118,7 @@ export interface CreateTaskPayload {
 	links?: string[];
 	content?: Record<string, unknown>;
 	calendar_id?: string;
+	time_slot_id?: string;
 	recurrence?: string;
 	status?: TaskStatus;
 }
@@ -139,6 +140,8 @@ export interface UpdateTaskPayload {
 	due_date?: string;
 	links?: string[];
 	content?: Record<string, unknown>;
+	calendar_id?: string | null;
+	time_slot_id?: string | null;
 	done?: boolean;
 	done_at?: string | null;
 	status?: TaskStatus;
@@ -198,6 +201,44 @@ export interface TimeSlot {
 	deleted_at: string | null;
 }
 
+export interface CreateTimeSlotPayload {
+	id: string;
+	calendar_id: string;
+	status: TimeSlotStatus;
+	title: string;
+	description?: string | null;
+	start_time: string;
+	end_time: string;
+	start_datetime_tz: string;
+	global_created_at: string;
+	global_updated_at: string;
+	label_id?: string | null;
+	section_id?: string | null;
+	recurrence?: string | null;
+	color?: string | null;
+	content?: Record<string, unknown>;
+	data?: Record<string, unknown>;
+}
+
+export interface UpdateTimeSlotPayload {
+	id: string;
+	global_updated_at: string;
+	calendar_id?: string;
+	status?: TimeSlotStatus;
+	title?: string;
+	description?: string | null;
+	start_time?: string;
+	end_time?: string;
+	start_datetime_tz?: string;
+	label_id?: string | null;
+	section_id?: string | null;
+	recurrence?: string | null;
+	color?: string | null;
+	content?: Record<string, unknown>;
+	data?: Record<string, unknown>;
+	deleted_at?: string | null;
+}
+
 export interface AkiflowCredentials {
 	token: string;
 	clientId: string;
@@ -216,6 +257,55 @@ export interface TokenRefreshResponse {
 // ============================================================
 
 export type EventStatus = "confirmed" | "tentative" | "cancelled";
+
+export interface CreateEventPayload {
+	title: string;
+	description: string;
+	start_time: string;
+	end_time: string;
+	id: string;
+	status: EventStatus;
+	start_datetime_tz: string;
+	creator_id: string | null;
+	organizer_id: string | null;
+	origin_id: string | null;
+	connector_id: string;
+	akiflow_account_id: string | null;
+	origin_account_id: string | null;
+	recurring_id: string | null;
+	origin_recurring_id: string | null;
+	calendar_id: string;
+	origin_calendar_id: string | null;
+	original_start_time: string | null;
+	original_start_date: string | null;
+	start_date: string | null;
+	end_date: string | null;
+	end_datetime_tz: string | null;
+	origin_updated_at: string | null;
+	etag: string | null;
+	content: Record<string, unknown> | null;
+	attendees: unknown[];
+	recurrence: string[] | null;
+	recurrence_exception: boolean;
+	declined: boolean;
+	read_only: boolean;
+	hidden: boolean;
+	url: string | null;
+	meeting_status: string | null;
+	meeting_url: string | null;
+	meeting_icon: string | null;
+	meeting_solution: string | null;
+	color: string | null;
+	calendar_color: string | null;
+	task_id: string | null;
+	time_slot_id: string | null;
+	recurrence_exception_delete: boolean;
+	recurrence_sync_retry: unknown | null;
+	errors: unknown | null;
+	global_created_at: string | null;
+	deleted_at: string | null;
+	global_updated_at: string;
+}
 
 export interface Event {
 	id: string;

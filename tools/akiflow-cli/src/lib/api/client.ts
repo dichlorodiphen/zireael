@@ -2,13 +2,17 @@ import { loadCredentials, saveCredentials } from "../auth/storage";
 import type {
 	AkiflowCredentials,
 	ApiResponse,
+	CreateEventPayload,
 	CreateTaskPayload,
+	CreateTimeSlotPayload,
+	Event,
 	Label,
 	Tag,
 	Task,
 	TimeSlot,
 	TokenRefreshResponse,
 	UpdateTaskPayload,
+	UpdateTimeSlotPayload,
 } from "./types";
 import { AuthError, NetworkError } from "./types";
 
@@ -139,13 +143,13 @@ export class AkiflowClient {
 	}
 
 	private async request<TData>(
-		method: "GET" | "PATCH",
+		method: "GET" | "PATCH" | "POST",
 		path: string,
 		body?: unknown,
 		retried = false,
 	): Promise<ApiResponse<TData>> {
 		const url = `${BASE_URL}${path}`;
-		const headers = await this.buildHeaders(method === "PATCH");
+		const headers = await this.buildHeaders(method !== "GET");
 
 		let response: Response;
 		try {
@@ -310,6 +314,18 @@ export class AkiflowClient {
 			"GET",
 			`/v5/time_slots?${params.toString()}`,
 		);
+	}
+
+	async upsertTimeSlots(
+		timeSlots: Array<CreateTimeSlotPayload | UpdateTimeSlotPayload>,
+	): Promise<ApiResponse<TimeSlot[]>> {
+		return this.request<TimeSlot[]>("PATCH", "/v5/time_slots", timeSlots);
+	}
+
+	async createEvents(
+		events: CreateEventPayload[],
+	): Promise<ApiResponse<Event[]>> {
+		return this.request<Event[]>("POST", "/v3/events", events);
 	}
 }
 

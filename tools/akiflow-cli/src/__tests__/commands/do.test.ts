@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { doCommand } from "../../commands/do";
 
@@ -10,8 +10,9 @@ class ExitError extends Error {
 	}
 }
 
-const testCacheDir = join(homedir(), ".cache", "af");
-const testContextFile = join(testCacheDir, "last-list.json");
+const originalAfCacheDir = process.env.AF_CACHE_DIR;
+let testCacheDir: string;
+let testContextFile: string;
 
 const mockContextFile = {
 	tasks: [
@@ -38,7 +39,9 @@ describe("do command", () => {
 	};
 
 	beforeEach(async () => {
-		mkdirSync(testCacheDir, { recursive: true });
+		testCacheDir = mkdtempSync(join(tmpdir(), "af-do-test-"));
+		process.env.AF_CACHE_DIR = testCacheDir;
+		testContextFile = join(testCacheDir, "last-list.json");
 		writeFileSync(testContextFile, JSON.stringify(mockContextFile));
 
 		// Prevent hitting real ~/.config/af credentials.
@@ -65,10 +68,12 @@ describe("do command", () => {
 			spies.pop()?.mockRestore();
 		}
 		try {
-			rmSync(testContextFile);
+			rmSync(testCacheDir, { recursive: true, force: true });
 		} catch {
 			// file may not exist
 		}
+		if (originalAfCacheDir === undefined) delete process.env.AF_CACHE_DIR;
+		else process.env.AF_CACHE_DIR = originalAfCacheDir;
 	});
 
 	it("completes single task by short ID", async () => {

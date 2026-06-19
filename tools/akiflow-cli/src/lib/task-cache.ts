@@ -1,10 +1,8 @@
 import * as fs from "node:fs/promises";
-import * as os from "node:os";
-import * as path from "node:path";
 import type { CreateTaskPayload, Task } from "./api/types";
+import { cacheFile, cachePath } from "./platform-config";
 
-const CACHE_DIR = path.join(os.homedir(), ".cache", "af");
-const PENDING_TASKS_FILE = path.join(CACHE_DIR, "pending-tasks.json");
+const PENDING_TASKS_FILE = "pending-tasks.json";
 
 // TTL for pending tasks (5 minutes) - after this, assume API has caught up
 const PENDING_TTL_MS = 5 * 60 * 1000;
@@ -20,7 +18,7 @@ interface PendingTasksCache {
 
 async function ensureCacheDir(): Promise<void> {
 	try {
-		await fs.mkdir(CACHE_DIR, { recursive: true });
+		await fs.mkdir(cachePath(), { recursive: true });
 	} catch {
 		// Directory might already exist
 	}
@@ -28,7 +26,7 @@ async function ensureCacheDir(): Promise<void> {
 
 export async function loadPendingTasks(): Promise<Task[]> {
 	try {
-		const content = await fs.readFile(PENDING_TASKS_FILE, "utf-8");
+		const content = await fs.readFile(cacheFile(PENDING_TASKS_FILE), "utf-8");
 		const cache: PendingTasksCache = JSON.parse(content);
 
 		const now = Date.now();
@@ -50,7 +48,10 @@ export async function loadPendingTasks(): Promise<Task[]> {
 
 async function savePendingTasksCache(cache: PendingTasksCache): Promise<void> {
 	await ensureCacheDir();
-	await fs.writeFile(PENDING_TASKS_FILE, JSON.stringify(cache, null, 2));
+	await fs.writeFile(
+		cacheFile(PENDING_TASKS_FILE),
+		JSON.stringify(cache, null, 2),
+	);
 }
 
 export async function addPendingTask(task: Task): Promise<void> {

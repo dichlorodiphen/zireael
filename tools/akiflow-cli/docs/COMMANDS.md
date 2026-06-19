@@ -15,8 +15,20 @@ af ls --label "work" --status "active"
 Add a new task with natural language date parsing.
 
 ```bash
-af add "Buy groceries" --due "tomorrow" --duration "1h"
+af add "Buy groceries" --date "tomorrow" --duration "1h"
 ```
+
+### af create
+
+Create explicit Akiflow record types.
+
+```bash
+af create task "Review PR" --date 2026-06-20 --description "Check release notes"
+af create slot "Planning block" --date 2026-06-20 --at 09:00 --duration 1h --task "Draft" --task "Review"
+af create event "Meeting" --date 2026-06-20 --at 13:00 --duration 30m --description "Discuss launch" --location "Office"
+```
+
+`af create event` v1 creates timed, non-recurring Google Calendar events through Akiflow. Attendees, recurrence, conferencing, reminders, all-day events, updates, and deletes are not supported.
 
 ### af do
 
@@ -65,7 +77,7 @@ af cal --month "2026-02"
 Create time blocks.
 
 ```bash
-af block "Focus Time" --start "10:00" --duration "2h"
+af block 2h "Focus Time"
 ```
 
 ## Authentication

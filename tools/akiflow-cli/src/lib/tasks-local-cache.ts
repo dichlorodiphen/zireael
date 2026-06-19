@@ -1,12 +1,10 @@
 import * as fs from "node:fs/promises";
-import * as os from "node:os";
-import * as path from "node:path";
 import type { AkiflowClient } from "./api/client";
 import type { Task } from "./api/types";
+import { cacheFile, cachePath } from "./platform-config";
 
-const CACHE_DIR = path.join(os.homedir(), ".cache", "af");
-const TASKS_CACHE_FILE = path.join(CACHE_DIR, "tasks-cache.json");
-const TASKS_CACHE_META_FILE = path.join(CACHE_DIR, "tasks-cache-meta.json");
+const TASKS_CACHE_FILE = "tasks-cache.json";
+const TASKS_CACHE_META_FILE = "tasks-cache-meta.json";
 
 // Bump this if we change cache shape.
 const CACHE_VERSION = 1;
@@ -27,12 +25,12 @@ interface TasksCacheFile {
 }
 
 async function ensureCacheDir(): Promise<void> {
-	await fs.mkdir(CACHE_DIR, { recursive: true });
+	await fs.mkdir(cachePath(), { recursive: true });
 }
 
 async function loadTasksCacheFile(): Promise<TasksCacheFile | null> {
 	try {
-		const content = await fs.readFile(TASKS_CACHE_FILE, "utf-8");
+		const content = await fs.readFile(cacheFile(TASKS_CACHE_FILE), "utf-8");
 		const parsed = JSON.parse(content) as TasksCacheFile;
 
 		if (!parsed || parsed.version !== CACHE_VERSION || !parsed.tasksById) {
@@ -47,7 +45,10 @@ async function loadTasksCacheFile(): Promise<TasksCacheFile | null> {
 
 async function loadTasksCacheMeta(): Promise<TasksCacheMeta | null> {
 	try {
-		const content = await fs.readFile(TASKS_CACHE_META_FILE, "utf-8");
+		const content = await fs.readFile(
+			cacheFile(TASKS_CACHE_META_FILE),
+			"utf-8",
+		);
 		const parsed = JSON.parse(content) as TasksCacheMeta;
 
 		if (!parsed || parsed.version !== CACHE_VERSION) {
@@ -66,13 +67,13 @@ async function saveTasksCache(
 ): Promise<void> {
 	await ensureCacheDir();
 
-	const cacheFile: TasksCacheFile = {
+	const cachePayload: TasksCacheFile = {
 		version: CACHE_VERSION,
 		tasksById,
 	};
 
-	await fs.writeFile(TASKS_CACHE_FILE, JSON.stringify(cacheFile));
-	await fs.writeFile(TASKS_CACHE_META_FILE, JSON.stringify(meta));
+	await fs.writeFile(cacheFile(TASKS_CACHE_FILE), JSON.stringify(cachePayload));
+	await fs.writeFile(cacheFile(TASKS_CACHE_META_FILE), JSON.stringify(meta));
 }
 
 function applyDelta(

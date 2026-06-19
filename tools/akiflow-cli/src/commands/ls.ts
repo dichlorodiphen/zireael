@@ -1,6 +1,4 @@
 import * as fs from "node:fs/promises";
-import * as os from "node:os";
-import * as path from "node:path";
 import { defineCommand } from "citty";
 import { rrulestr } from "rrule";
 import { createClient } from "../lib/api/client";
@@ -24,6 +22,7 @@ import {
 	type ResolveContext,
 	toCleanedTaskView,
 } from "../lib/format/cleaned-types";
+import { cacheFile, cachePath } from "../lib/platform-config";
 import {
 	loadPendingTasks,
 	mergeTasks,
@@ -309,16 +308,13 @@ function formatTaskTable(
 }
 
 async function saveTaskContext(tasks: Task[]): Promise<void> {
-	const homeDir = os.homedir();
-	const cacheDir = path.join(homeDir, ".cache", "af");
-
 	try {
-		await fs.mkdir(cacheDir, { recursive: true });
+		await fs.mkdir(cachePath(), { recursive: true });
 	} catch {
 		// Directory might already exist
 	}
 
-	const contextFile = path.join(cacheDir, "last-list.json");
+	const contextFile = cacheFile("last-list.json");
 
 	const context: TaskContext = {
 		tasks: tasks.map((task, index) => ({

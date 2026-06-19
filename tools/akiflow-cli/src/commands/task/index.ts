@@ -1,6 +1,4 @@
 import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import { defineCommand } from "citty";
 import { createClient } from "../../lib/api/client";
 import type { UpdateTaskPayload } from "../../lib/api/types";
@@ -12,6 +10,7 @@ import {
 	parseTime,
 } from "../../lib/date-parser";
 import { parseDuration } from "../../lib/duration-parser";
+import { cacheFile } from "../../lib/platform-config";
 
 interface ContextFile {
 	tasks: Array<{
@@ -23,7 +22,7 @@ interface ContextFile {
 }
 
 function getContextFilePath(): string {
-	return join(homedir(), ".cache", "af", "last-list.json");
+	return cacheFile("last-list.json");
 }
 
 function readContextFile(): ContextFile | null {
