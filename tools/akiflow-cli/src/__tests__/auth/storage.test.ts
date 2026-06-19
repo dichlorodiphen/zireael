@@ -1,5 +1,6 @@
 /// <reference types="bun" />
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -126,6 +127,18 @@ describe("Credentials Storage", () => {
 			// then
 			const loaded = await loadCredentials();
 			expect(loaded?.token).toBe(token2);
+		});
+
+		it("creates config directory and credentials file with restrictive permissions", async () => {
+			// given
+			const token = "permission-test-token";
+
+			// when
+			await saveCredentials(token);
+
+			// then
+			expect(statSync(TEST_CONFIG_DIR).mode & 0o777).toBe(0o700);
+			expect(statSync(getCredentialsPath()).mode & 0o777).toBe(0o600);
 		});
 	});
 

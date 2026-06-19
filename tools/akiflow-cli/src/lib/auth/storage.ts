@@ -1,4 +1,4 @@
-import { mkdir } from "node:fs/promises";
+import { chmod, mkdir, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -21,7 +21,8 @@ function getCredentialsPath(): string {
 
 async function ensureConfigDirectory(): Promise<void> {
 	const configPath = getConfigPath();
-	await mkdir(configPath, { recursive: true });
+	await mkdir(configPath, { recursive: true, mode: 0o700 });
+	await chmod(configPath, 0o700);
 }
 
 export async function saveCredentials(
@@ -38,7 +39,11 @@ export async function saveCredentials(
 	};
 
 	await ensureConfigDirectory();
-	await Bun.write(getCredentialsPath(), JSON.stringify(credentials, null, 2));
+	const credentialsPath = getCredentialsPath();
+	await writeFile(credentialsPath, JSON.stringify(credentials, null, 2), {
+		mode: 0o600,
+	});
+	await chmod(credentialsPath, 0o600);
 }
 
 export async function loadCredentials(): Promise<Credentials | null> {
@@ -57,9 +62,18 @@ export async function loadCredentials(): Promise<Credentials | null> {
 
 export async function clearCredentials(): Promise<void> {
 	const credentialsPath = getCredentialsPath();
-	const credentialsFile = Bun.file(credentialsPath);
 
-	if (await credentialsFile.exists()) {
-		await Bun.$`rm ${credentialsPath}`;
+	try {
+		await unlink(credentialsPath);
+	} catch (error) {
+		if (
+			typeof error === "object" &&
+			error !== null &&
+			"code" in error &&
+			error.code === "ENOENT"
+		) {
+			return;
+		}
+		throw error;
 	}
 }

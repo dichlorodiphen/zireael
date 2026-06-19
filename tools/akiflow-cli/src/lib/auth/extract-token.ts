@@ -49,6 +49,7 @@ const AKIFLOW_DOMAIN = "akiflow.com";
  * Cookie name pattern for Akiflow auth
  */
 const COOKIE_NAME_PATTERN = "remember_web_";
+const KEYCHAIN_LOOKUP_TIMEOUT_MS = 2000;
 
 /**
  * Get Chrome Safe Storage password from macOS Keychain
@@ -87,8 +88,30 @@ export async function getKeychainPassword(
 			},
 		);
 
+		let timeout: ReturnType<typeof setTimeout> | undefined;
+		const timeoutReached = new Promise<"timeout">((resolve) => {
+			timeout = setTimeout(
+				() => resolve("timeout"),
+				KEYCHAIN_LOOKUP_TIMEOUT_MS,
+			);
+		});
+		const exitReached = proc.exited.then(() => "exited" as const);
+		const result = await Promise.race([exitReached, timeoutReached]);
+
+		if (timeout) clearTimeout(timeout);
+
+		if (result === "timeout") {
+			proc.kill();
+			await proc.exited.catch(() => undefined);
+			log.warn("keychain_timeout", "keychain lookup timed out", {
+				browser: browserName,
+				service: serviceName,
+				timeout_ms: KEYCHAIN_LOOKUP_TIMEOUT_MS,
+			});
+			return null;
+		}
+
 		const output = await new Response(proc.stdout).text();
-		await proc.exited;
 
 		if (proc.exitCode !== 0) {
 			log.warn(
@@ -232,62 +255,82 @@ export async function extractFromChrome(
 
 	copyFileSync(browserPath.cookiePath, tempPath);
 
-	const database = new Database(tempPath, { readonly: true });
+	let database: Database | null = null;
 
-	// Query for Akiflow cookies
-	const query = database.query(`
-    SELECT name, value, encrypted_value, host_key
-    FROM cookies
-    WHERE host_key LIKE $domain
-      AND name LIKE $pattern
-  `);
+	try {
+		database = new Database(tempPath, { readonly: true });
 
-	const rows = query.all({
-		$domain: `%${AKIFLOW_DOMAIN}%`,
-		$pattern: `${COOKIE_NAME_PATTERN}%`,
-	}) as Array<{
-		name: string;
-		value: string;
-		encrypted_value: Uint8Array;
-		host_key: string;
-	}>;
+		// Query for Akiflow cookies
+		const query = database.query(`
+	    SELECT name, value, encrypted_value, host_key
+	    FROM cookies
+	    WHERE host_key LIKE $domain
+	      AND name LIKE $pattern
+	  `);
 
-	for (const row of rows) {
-		let tokenValue: string | null = null;
+		const rows = query.all({
+			$domain: `%${AKIFLOW_DOMAIN}%`,
+			$pattern: `${COOKIE_NAME_PATTERN}%`,
+		}) as Array<{
+			name: string;
+			value: string;
+			encrypted_value: Uint8Array;
+			host_key: string;
+		}>;
 
-		// Try to get value from encrypted_value first
-		if (row.encrypted_value && row.encrypted_value.length > 0) {
-			tokenValue = await decryptChromeValue(row.encrypted_value, key);
-		}
+		for (const row of rows) {
+			let tokenValue: string | null = null;
 
-		// Fall back to plain value if available
-		if (!tokenValue && row.value) {
-			tokenValue = row.value;
-		}
-
-		if (tokenValue) {
-			const jwt = isJwtToken(tokenValue)
-				? tokenValue
-				: extractJwtFromString(tokenValue);
-			if (!jwt) {
-				continue;
+			// Try to get value from encrypted_value first
+			if (row.encrypted_value && row.encrypted_value.length > 0) {
+				tokenValue = await decryptChromeValue(row.encrypted_value, key);
 			}
 
-			tokens.push({
+			// Fall back to plain value if available
+			if (!tokenValue && row.value) {
+				tokenValue = row.value;
+			}
+
+			if (tokenValue) {
+				const jwt = isJwtToken(tokenValue)
+					? tokenValue
+					: extractJwtFromString(tokenValue);
+				if (!jwt) {
+					continue;
+				}
+
+				tokens.push({
+					browser: browserPath.id,
+					token: jwt,
+					source: browserPath.cookiePath,
+					expiresAt: parseJWTExpiration(jwt),
+				});
+			}
+		}
+
+		return tokens;
+	} finally {
+		try {
+			database?.close();
+		} catch (error) {
+			log.warn("temp_cookie_close_failed", "failed to close copied cookie DB", {
 				browser: browserPath.id,
-				token: jwt,
-				source: browserPath.cookiePath,
-				expiresAt: parseJWTExpiration(jwt),
+				error: error instanceof Error ? error.message : String(error),
 			});
 		}
+		try {
+			unlinkSync(tempPath);
+		} catch (error) {
+			log.warn(
+				"temp_cookie_cleanup_failed",
+				"failed to remove copied cookie DB",
+				{
+					browser: browserPath.id,
+					error: error instanceof Error ? error.message : String(error),
+				},
+			);
+		}
 	}
-
-	database.close();
-
-	// Cleanup temp file
-	unlinkSync(tempPath);
-
-	return tokens;
 }
 
 /**
