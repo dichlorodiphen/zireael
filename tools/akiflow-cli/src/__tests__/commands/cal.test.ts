@@ -89,14 +89,16 @@ describe("cal command", () => {
 		tasks?: Task[];
 		calendars?: Calendar[];
 	} = {}): void {
-			mockReadResource.mockImplementation((_client: unknown, resource: string) => {
-			if (resource === "events") return Promise.resolve(events);
-			if (resource === "time_slots") return Promise.resolve(slots);
-			if (resource === "tasks") return Promise.resolve(tasks);
-			if (resource === "calendars") return Promise.resolve(calendars);
-			if (resource === "accounts") return Promise.resolve([]);
-			return Promise.resolve([]);
-		});
+		mockReadResource.mockImplementation(
+			(_client: unknown, resource: string) => {
+				if (resource === "events") return Promise.resolve(events);
+				if (resource === "time_slots") return Promise.resolve(slots);
+				if (resource === "tasks") return Promise.resolve(tasks);
+				if (resource === "calendars") return Promise.resolve(calendars);
+				if (resource === "accounts") return Promise.resolve([]);
+				return Promise.resolve([]);
+			},
+		);
 	}
 
 	it("lists today's events in timeline format", async () => {

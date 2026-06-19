@@ -419,10 +419,10 @@ function buildExtendedFilter(args: Record<string, unknown>): TaskFilter {
 		}
 	} else if (args.from || args.to) {
 		f.from = args.from
-			? parseDateBoundary(args.from as string, "start") ?? undefined
+			? (parseDateBoundary(args.from as string, "start") ?? undefined)
 			: startOfDay(new Date(0));
 		f.to = args.to
-			? parseDateBoundary(args.to as string, "end") ?? undefined
+			? (parseDateBoundary(args.to as string, "end") ?? undefined)
 			: endOfDay(new Date(9999, 11, 31));
 	}
 
