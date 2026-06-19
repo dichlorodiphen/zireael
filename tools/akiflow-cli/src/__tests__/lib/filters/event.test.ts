@@ -55,6 +55,56 @@ describe("filterEvents", () => {
 		).toEqual(["in"]);
 	});
 
+	test("date range filters all-day events by local start_date", () => {
+		const events = [
+			ev({ id: "before", start_time: null, start_date: "2026-06-17" }),
+			ev({ id: "in", start_time: null, start_date: "2026-06-18" }),
+			ev({ id: "after", start_time: null, start_date: "2026-06-19" }),
+		];
+
+		expect(
+			filterEvents(events, {
+				from: new Date(2026, 5, 18),
+				to: new Date(2026, 5, 18),
+			}).map((e) => e.id),
+		).toEqual(["in"]);
+	});
+
+	test("excludes hidden events", () => {
+		const events = [ev({ id: "visible" }), ev({ id: "hidden", hidden: true })];
+
+		expect(filterEvents(events, {}).map((e) => e.id)).toEqual(["visible"]);
+	});
+
+	test("excludes hidden calendars by default", () => {
+		const events = [
+			ev({ id: "visible", calendar_id: "visible-cal" }),
+			ev({ id: "hidden-cal", calendar_id: "hidden-cal" }),
+		];
+
+		expect(
+			filterEvents(events, {
+				activeCalendarIds: new Set(["visible-cal", "hidden-cal"]),
+				visibleCalendarIds: new Set(["visible-cal"]),
+			}).map((e) => e.id),
+		).toEqual(["visible"]);
+	});
+
+	test("explicit calendar filter can show a hidden calendar", () => {
+		const events = [
+			ev({ id: "visible", calendar_id: "visible-cal" }),
+			ev({ id: "hidden-cal", calendar_id: "hidden-cal" }),
+		];
+
+		expect(
+			filterEvents(events, {
+				calendar: "hidden-cal",
+				activeCalendarIds: new Set(["visible-cal", "hidden-cal"]),
+				visibleCalendarIds: new Set(["visible-cal"]),
+			}).map((e) => e.id),
+		).toEqual(["hidden-cal"]);
+	});
+
 	test("--all-day-only filters to date-only events", () => {
 		const events = [
 			ev({ id: "timed", start_time: "2026-05-21T10:00:00Z", start_date: null }),
@@ -80,6 +130,16 @@ describe("mergeTimeline", () => {
 		const merged = mergeTimeline(events, slots, tasks);
 		expect(merged.length).toBe(1);
 		expect(merged[0]?.type).toBe("event");
+	});
+
+	test("all-day events use local dates in the timeline", () => {
+		const events = [
+			ev({ id: "allday", start_time: null, start_date: "2026-06-18" }),
+		];
+
+		const merged = mergeTimeline(events, [], []);
+
+		expect(merged[0]?.start).toEqual(new Date(2026, 5, 18));
 	});
 
 	test("sorted by start time", () => {

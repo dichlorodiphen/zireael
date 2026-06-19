@@ -7,6 +7,10 @@ import { makeTestEnv } from "./helpers/test-env";
 let server: FakeAkiflowServer;
 let env: ReturnType<typeof makeTestEnv>;
 
+function calEnv(): Record<string, string> {
+	return { ...env.env, AF_NO_AUTO_SYNC: "" };
+}
+
 beforeEach(async () => {
 	server = new FakeAkiflowServer();
 	await server.start();
@@ -25,7 +29,7 @@ describe("af cal (BDD — new merged-timeline mode)", () => {
 		const result = await spawnCli(
 			["cal", "--from", "2026-05-18", "--to", "2026-05-24", "--json"],
 			{
-				env: env.env,
+				env: calEnv(),
 			},
 		);
 		expect(result.exitCode).toBe(0);
@@ -46,7 +50,7 @@ describe("af cal (BDD — new merged-timeline mode)", () => {
 		const result = await spawnCli(
 			["cal", "--from", "2026-05-18", "--to", "2026-05-24", "--raw"],
 			{
-				env: env.env,
+				env: calEnv(),
 			},
 		);
 		expect(result.exitCode).toBe(0);
@@ -66,7 +70,7 @@ describe("af cal (BDD — new merged-timeline mode)", () => {
 				"--no-events",
 				"--json",
 			],
-			{ env: env.env },
+			{ env: calEnv() },
 		);
 		expect(result.exitCode).toBe(0);
 		const report = JSON.parse(result.stdout);

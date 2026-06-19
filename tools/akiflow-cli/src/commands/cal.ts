@@ -7,7 +7,17 @@ import type {
 	Task,
 	TimeSlot,
 } from "../lib/api/types";
-import { type NamedRange, resolveRange } from "../lib/date-parser";
+import { readResource } from "../lib/cache";
+import {
+	endOfDay,
+	formatLocalDate,
+	type NamedRange,
+	parseDateBoundary,
+	parseLocalDate,
+	resolveRange,
+	resolveSingleDayRange,
+	startOfDay,
+} from "../lib/date-parser";
 import {
 	type EventFilter,
 	filterEvents,
@@ -192,16 +202,17 @@ function buildEventFilter(
 	const range = named
 		? resolveRange(named)
 		: args.date
-			? (() => {
-					const d = new Date(args.date as string);
-					return { from: d, to: d };
-				})()
+			? (resolveSingleDayRange(args.date as string) ?? resolveRange("today"))
 			: args.from || args.to
 				? {
-						from: args.from ? new Date(args.from as string) : new Date(0),
+						from: args.from
+							? (parseDateBoundary(args.from as string, "start") ??
+								startOfDay(new Date(0)))
+							: startOfDay(new Date(0)),
 						to: args.to
-							? new Date(args.to as string)
-							: new Date(8640000000000000),
+							? (parseDateBoundary(args.to as string, "end") ??
+								endOfDay(new Date(9999, 11, 31)))
+							: endOfDay(new Date(9999, 11, 31)),
 					}
 				: resolveRange("today");
 
@@ -224,21 +235,32 @@ async function runMergedCalendar(args: Record<string, unknown>): Promise<void> {
 	const eventsPromise =
 		args.events === false
 			? Promise.resolve({ data: [] as Event[] })
-			: client.get<Event[]>("/v5/events", { limit: 2500 });
+			: readResource(client, "events").then((data) => ({ data }));
 	const slotsPromise =
 		args.slots === false
 			? Promise.resolve({ data: [] as TimeSlot[] })
-			: client.getTimeSlots();
+			: readResource(client, "time_slots").then((data) => ({ data }));
 	const tasksPromise =
 		args.tasks === false
 			? Promise.resolve({ data: [] as Task[] })
-			: client.getTasks({ limit: 2500 });
+			: readResource(client, "tasks").then((data) => ({ data }));
+	const calendarsPromise = readResource(client, "calendars");
 
-	const [eventsResp, slotsResp, tasksResp] = (await Promise.all([
+	const [eventsResp, slotsResp, tasksResp, calendars] = await Promise.all([
 		eventsPromise,
 		slotsPromise,
 		tasksPromise,
-	])) as [{ data: Event[] }, { data: TimeSlot[] }, { data: Task[] }];
+		calendarsPromise,
+	]);
+
+	const activeCalendarIds = new Set(
+		calendars.filter((c) => c.deleted_at == null).map((c) => c.id),
+	);
+	const visibleCalendarIds = new Set(
+		calendars
+			.filter((c) => c.deleted_at == null && c.hidden_at == null)
+			.map((c) => c.id),
+	);
 
 	// Filter events
 	const eventsFiltered = filterEvents(eventsResp.data, {
@@ -250,6 +272,8 @@ async function runMergedCalendar(args: Record<string, unknown>): Promise<void> {
 		includeDeclined: ef.includeDeclined,
 		allDayOnly: ef.allDayOnly,
 		noAllDay: ef.noAllDay,
+		activeCalendarIds,
+		visibleCalendarIds,
 	});
 
 	// Filter slots by date range
@@ -283,19 +307,10 @@ async function runMergedCalendar(args: Record<string, unknown>): Promise<void> {
 	if (args.json) {
 		// Cleaned shape: resolve calendar + account names
 		const ctx = emptyContext();
+		for (const c of calendars) ctx.calendarsById.set(c.id, c);
 		try {
-			const calsResp = await client.get<Calendar[]>("/v5/calendars", {
-				limit: 2500,
-			});
-			for (const c of calsResp.data) ctx.calendarsById.set(c.id, c);
-		} catch {
-			/* empty context still works */
-		}
-		try {
-			const accsResp = await client.get<Account[]>("/v5/accounts", {
-				limit: 2500,
-			});
-			for (const a of accsResp.data) ctx.accountsById.set(a.id, a);
+			const accounts = await readResource(client, "accounts");
+			for (const a of accounts) ctx.accountsById.set(a.id, a);
 		} catch {
 			/* same */
 		}
@@ -318,14 +333,14 @@ function formatMergedTimeline(entries: TimelineEntry[]): string {
 		return "(no events, slots, or scheduled tasks in range)";
 	const byDay = new Map<string, TimelineEntry[]>();
 	for (const e of entries) {
-		const day = e.start.toISOString().slice(0, 10);
+		const day = formatLocalDate(e.start);
 		const arr = byDay.get(day) ?? [];
 		arr.push(e);
 		byDay.set(day, arr);
 	}
 	const lines: string[] = [];
 	for (const [day, dayEntries] of byDay) {
-		lines.push(new Date(day).toDateString());
+		lines.push((parseLocalDate(day) ?? new Date(day)).toDateString());
 		lines.push("");
 		for (const e of dayEntries) {
 			const start = `${pad2(e.start.getHours())}:${pad2(e.start.getMinutes())}`;
@@ -414,19 +429,7 @@ export const cal = defineCommand({
 				return;
 			}
 
-			if (hasExtendedCalFlags(args)) {
-				await runMergedCalendar(args);
-				return;
-			}
-
-			// Default (no flags): preserve the upstream slot-only behavior so
-			// existing tests + scripts that pipe `af cal` keep working. Use any
-			// new flag (e.g. --today, --this-week, --json) to opt into the
-			// merged events+slots+tasks timeline.
-			const client = createClient();
-			const response = await client.getTimeSlots();
-			const todaySlots = response.data.filter(isToday);
-			console.log(formatTimeline(todaySlots));
+			await runMergedCalendar(args);
 		} catch (error) {
 			if (error instanceof Error && error.name === "AuthError") {
 				console.error(

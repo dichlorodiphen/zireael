@@ -1,4 +1,5 @@
 import type { Event, Task, TimeSlot } from "../api/types";
+import { endOfDay, parseLocalDate, startOfDay } from "../date-parser";
 
 export interface EventFilter {
 	from?: Date;
@@ -12,26 +13,54 @@ export interface EventFilter {
 	includeDeclined?: boolean;
 	allDayOnly?: boolean;
 	noAllDay?: boolean;
+	activeCalendarIds?: Set<string>;
+	visibleCalendarIds?: Set<string>;
 }
 
 export function filterEvents(events: Event[], f: EventFilter): Event[] {
 	return events.filter((e) => {
 		if (e.deleted_at != null) return false;
+		if (e.hidden) return false;
 		if (!f.includeDeclined && e.declined) return false;
+		if (f.activeCalendarIds && !f.activeCalendarIds.has(e.calendar_id)) {
+			return false;
+		}
+		if (
+			!f.calendar &&
+			f.visibleCalendarIds &&
+			!f.visibleCalendarIds.has(e.calendar_id)
+		) {
+			return false;
+		}
 		const isAllDay = e.start_date != null;
 		if (f.allDayOnly && !isAllDay) return false;
 		if (f.noAllDay && isAllDay) return false;
 		if (f.from && f.to) {
-			const ref = e.start_time ?? e.start_date;
-			if (!ref) return false;
-			const startMs = new Date(ref).getTime();
-			if (startMs < f.from.getTime() || startMs > f.to.getTime()) return false;
+			if (!eventIntersectsRange(e, f.from, f.to)) return false;
 		}
 		if (f.calendar && e.calendar_id !== f.calendar) return false;
 		if (f.account && e.akiflow_account_id !== f.account) return false;
 		if (f.connector && e.connector_id !== f.connector) return false;
 		return true;
 	});
+}
+
+function eventIntersectsRange(e: Event, from: Date, to: Date): boolean {
+	const fromMs = from.getTime();
+	const toMs = to.getTime();
+
+	if (e.start_time) {
+		const startMs = new Date(e.start_time).getTime();
+		return startMs >= fromMs && startMs <= toMs;
+	}
+
+	if (!e.start_date) return false;
+	const start = parseLocalDate(e.start_date);
+	if (!start) return false;
+	const end = e.end_date ? parseLocalDate(e.end_date) : null;
+	const startMs = startOfDay(start).getTime();
+	const endMs = endOfDay(end ?? start).getTime();
+	return startMs <= toMs && endMs >= fromMs;
 }
 
 export type TimelineEntry =
@@ -61,9 +90,14 @@ export function mergeTimeline(
 	for (const e of events) {
 		const ref = e.start_time ?? e.start_date;
 		if (!ref) continue;
-		const start = new Date(ref);
+		const start = e.start_time ? new Date(e.start_time) : parseLocalDate(ref);
+		if (!start) continue;
 		const endRef = e.end_time ?? e.end_date;
-		const end = endRef ? new Date(endRef) : null;
+		const end = e.end_time
+			? new Date(e.end_time)
+			: endRef
+				? parseLocalDate(endRef)
+				: null;
 		result.push({ type: "event", record: e, start, end });
 	}
 
