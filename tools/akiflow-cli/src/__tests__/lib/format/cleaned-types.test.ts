@@ -125,6 +125,15 @@ describe("toCleanedTaskView — source for gmail tasks", () => {
 });
 
 describe("toCleanedTaskView — overdue", () => {
+	test("date today + not done → overdue: false", () => {
+		const now = new Date();
+		const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+		expect(toCleanedTaskView(task({ date: today }), ctx()).overdue).toBe(
+			false,
+		);
+	});
+
 	test("date in past + not done → overdue: true", () => {
 		expect(toCleanedTaskView(task({ date: "2020-01-01" }), ctx()).overdue).toBe(
 			true,

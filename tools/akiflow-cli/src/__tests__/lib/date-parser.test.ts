@@ -5,7 +5,9 @@ import {
 	getTodayDate,
 	getTomorrowDate,
 	parseDate,
+	parseLocalDate,
 	parseTime,
+	resolveSingleDayRange,
 } from "../../lib/date-parser";
 
 // Fixed reference: Wednesday, June 3, 2026 12:00 local time. Returned
@@ -81,6 +83,30 @@ describe("parseDate", () => {
 
 		// then
 		expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+	});
+});
+
+describe("parseLocalDate", () => {
+	it("parses date-only strings as local calendar dates", () => {
+		const result = parseLocalDate("2026-06-18");
+
+		expect(result?.getFullYear()).toBe(2026);
+		expect(result?.getMonth()).toBe(5);
+		expect(result?.getDate()).toBe(18);
+		expect(result?.getHours()).toBe(0);
+	});
+
+	it("rejects invalid date-only strings", () => {
+		expect(parseLocalDate("2026-02-31")).toBeNull();
+	});
+});
+
+describe("resolveSingleDayRange", () => {
+	it("resolves date-only input to a local day range", () => {
+		const result = resolveSingleDayRange("2026-06-18", refNow());
+
+		expect(result?.from).toEqual(new Date(2026, 5, 18, 0, 0, 0, 0));
+		expect(result?.to).toEqual(new Date(2026, 5, 18, 23, 59, 59, 999));
 	});
 });
 

@@ -85,6 +85,21 @@ describe("filterTasks — date ranges", () => {
 		expect(result.map((t) => t.id)).toEqual(["in"]);
 	});
 
+	test("date-only values match local day ranges", () => {
+		const tasks = [
+			task({ id: "before", date: "2026-06-17" }),
+			task({ id: "in", date: "2026-06-18" }),
+			task({ id: "after", date: "2026-06-19" }),
+		];
+
+		const result = filterTasks(tasks, {
+			from: new Date(2026, 5, 18),
+			to: new Date(2026, 5, 18),
+		});
+
+		expect(result.map((t) => t.id)).toEqual(["in"]);
+	});
+
 	test("date range matches plan_unit=WEEK bucket", () => {
 		// Week 21 of 2026 covers around May 18-24
 		const tasks = [

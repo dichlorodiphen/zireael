@@ -1,5 +1,6 @@
 import type { Task, TaskState } from "../api/types";
 import { taskStateOf } from "../api/types";
+import { endOfDay, parseLocalDate, startOfDay } from "../date-parser";
 
 export type StatusName = TaskState | "active" | "all";
 
@@ -67,8 +68,12 @@ function inDateRange(t: Task, from: Date, to: Date): boolean {
 	const fromMs = startOfDay(from).getTime();
 	const toMs = endOfDay(to).getTime();
 	if (t.date) {
-		const d = new Date(t.date).getTime();
-		if (d >= fromMs && d <= toMs) return true;
+		const day = parseLocalDate(t.date);
+		if (day) {
+			const dayStartMs = startOfDay(day).getTime();
+			const dayEndMs = endOfDay(day).getTime();
+			if (dayStartMs <= toMs && dayEndMs >= fromMs) return true;
+		}
 	}
 	if (t.datetime) {
 		const d = new Date(t.datetime).getTime();
@@ -123,18 +128,16 @@ function isoWeekRange(
 	return { weekStart, weekEnd };
 }
 
-function startOfDay(d: Date): Date {
-	return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-}
-function endOfDay(d: Date): Date {
-	return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
-}
-
 function isOverdue(t: Task): boolean {
 	if (t.done) return false;
-	const ref = t.datetime ?? t.date;
-	if (!ref) return false;
-	return new Date(ref).getTime() < startOfDay(new Date()).getTime();
+	const todayStart = startOfDay(new Date()).getTime();
+	if (t.datetime) return new Date(t.datetime).getTime() < todayStart;
+	if (t.date) {
+		const day = parseLocalDate(t.date);
+		if (!day) return false;
+		return day.getTime() < todayStart;
+	}
+	return false;
 }
 
 function matchConnector(t: Task, connector: string): boolean {

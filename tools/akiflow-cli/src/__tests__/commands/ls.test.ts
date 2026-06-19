@@ -302,6 +302,46 @@ describe("ls command", () => {
 		writeFileMock.mockRestore();
 	});
 
+	it("shows today's date-only tasks with --today", async () => {
+		const getTasksMock = spyOn(
+			AkiflowClient.prototype,
+			"getTasks",
+		).mockResolvedValue({
+			success: true,
+			message: null,
+			data: mockTasks,
+		});
+
+		const mkdirMock = spyOn(fs, "mkdir").mockResolvedValue(undefined);
+		const writeFileMock = spyOn(fs, "writeFile").mockResolvedValue(undefined);
+
+		const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
+
+		await lsCommand.run!({
+			args: {
+				inbox: false,
+				all: false,
+				done: false,
+				json: false,
+				plain: false,
+				today: true,
+				_task: [],
+			},
+		} as never);
+
+		expect(getTasksMock).toHaveBeenCalled();
+		const consoleOutput = consoleLogSpy.mock.calls[0]?.[0] as
+			| string
+			| undefined;
+		expect(consoleOutput).toContain("Complete project documentation");
+		expect(consoleOutput).not.toContain("Tomorrow task");
+
+		consoleLogSpy.mockRestore();
+		getTasksMock.mockRestore();
+		mkdirMock.mockRestore();
+		writeFileMock.mockRestore();
+	});
+
 	it("shows virtual recurring tasks for today when Akiflow API has no pending instance", async () => {
 		const recurringMaster: Task = {
 			...mockTasks[0]!,

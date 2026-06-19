@@ -7,6 +7,7 @@ import type {
 	TimeSlot,
 } from "../api/types";
 import { taskStateOf } from "../api/types";
+import { parseLocalDate, startOfDay } from "../date-parser";
 
 // ============================================================
 // Cleaned JSON shapes — stable contract for --json output
@@ -173,11 +174,14 @@ function extractSource(t: Task, ctx: ResolveContext): CleanedSource | null {
 
 function isOverdueTask(t: Task): boolean {
 	if (t.done) return false;
-	const ref = t.datetime ?? t.date;
-	if (!ref) return false;
-	const today = new Date();
-	today.setHours(0, 0, 0, 0);
-	return new Date(ref).getTime() < today.getTime();
+	const todayStart = startOfDay(new Date()).getTime();
+	if (t.datetime) return new Date(t.datetime).getTime() < todayStart;
+	if (t.date) {
+		const day = parseLocalDate(t.date);
+		if (!day) return false;
+		return day.getTime() < todayStart;
+	}
+	return false;
 }
 
 // ============================================================

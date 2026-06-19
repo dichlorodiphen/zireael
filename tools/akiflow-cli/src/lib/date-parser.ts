@@ -130,10 +130,82 @@ export interface DateRange {
 	to: Date;
 }
 
-const startOfDay = (d: Date): Date =>
+const ISO_LOCAL_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+export const startOfDay = (d: Date): Date =>
 	new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
-const endOfDay = (d: Date): Date =>
+export const endOfDay = (d: Date): Date =>
 	new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+
+export function isLocalDateString(value: string): boolean {
+	return ISO_LOCAL_DATE.test(value);
+}
+
+/**
+ * Parse an API date-only value as a local calendar day. Date-only strings
+ * must not use new Date("YYYY-MM-DD"), which JavaScript interprets as UTC.
+ */
+export function parseLocalDate(value: string): Date | null {
+	const match = value.match(ISO_LOCAL_DATE);
+	if (!match) return null;
+
+	const year = Number(match[1]);
+	const month = Number(match[2]);
+	const day = Number(match[3]);
+	const date = new Date(year, month - 1, day, 0, 0, 0, 0);
+
+	if (
+		date.getFullYear() !== year ||
+		date.getMonth() !== month - 1 ||
+		date.getDate() !== day
+	) {
+		return null;
+	}
+
+	return date;
+}
+
+export function parseDateBoundary(
+	value: string,
+	boundary: "start" | "end",
+	now: Date = new Date(),
+): Date | null {
+	const localDate = parseLocalDate(value);
+	if (localDate) {
+		return boundary === "start" ? startOfDay(localDate) : endOfDay(localDate);
+	}
+
+	const instant = new Date(value);
+	if (!Number.isNaN(instant.getTime())) return instant;
+
+	const parsedDate = parseDate(value, now);
+	if (parsedDate) {
+		const parsedLocalDate = parseLocalDate(parsedDate);
+		if (parsedLocalDate) {
+			return boundary === "start"
+				? startOfDay(parsedLocalDate)
+				: endOfDay(parsedLocalDate);
+		}
+	}
+
+	return null;
+}
+
+export function resolveSingleDayRange(
+	value: string,
+	now: Date = new Date(),
+): DateRange | null {
+	const start = parseDateBoundary(value, "start", now);
+	if (!start) return null;
+
+	const localDate =
+		parseLocalDate(value) ?? parseLocalDate(parseDate(value, now) ?? "");
+	if (localDate) {
+		return { from: startOfDay(localDate), to: endOfDay(localDate) };
+	}
+
+	return { from: startOfDay(start), to: endOfDay(start) };
+}
 
 /**
  * Resolve a named range to a {from, to} pair (local time). Week starts on

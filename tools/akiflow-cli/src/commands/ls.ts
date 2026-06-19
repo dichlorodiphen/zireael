@@ -5,7 +5,15 @@ import { defineCommand } from "citty";
 import { rrulestr } from "rrule";
 import { createClient } from "../lib/api/client";
 import type { Account, Label, Task } from "../lib/api/types";
-import { type NamedRange, parseMonth, resolveRange } from "../lib/date-parser";
+import {
+	endOfDay,
+	type NamedRange,
+	parseDateBoundary,
+	parseMonth,
+	resolveRange,
+	resolveSingleDayRange,
+	startOfDay,
+} from "../lib/date-parser";
 import {
 	filterTasks as applyExtendedFilters,
 	type StatusName,
@@ -398,9 +406,11 @@ function buildExtendedFilter(args: Record<string, unknown>): TaskFilter {
 		f.from = r.from;
 		f.to = r.to;
 	} else if (args.date) {
-		const d = new Date(args.date as string);
-		f.from = d;
-		f.to = d;
+		const r = resolveSingleDayRange(args.date as string);
+		if (r) {
+			f.from = r.from;
+			f.to = r.to;
+		}
 	} else if (args.month) {
 		const m = parseMonth(args.month as string);
 		if (m) {
@@ -408,8 +418,12 @@ function buildExtendedFilter(args: Record<string, unknown>): TaskFilter {
 			f.to = new Date(m.year, m.month, 0);
 		}
 	} else if (args.from || args.to) {
-		if (args.from) f.from = new Date(args.from as string);
-		if (args.to) f.to = new Date(args.to as string);
+		f.from = args.from
+			? parseDateBoundary(args.from as string, "start") ?? undefined
+			: startOfDay(new Date(0));
+		f.to = args.to
+			? parseDateBoundary(args.to as string, "end") ?? undefined
+			: endOfDay(new Date(9999, 11, 31));
 	}
 
 	if (args.overdue) f.overdue = true;
