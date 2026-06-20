@@ -476,6 +476,64 @@ describe("AkiflowClient", () => {
 		});
 	});
 
+	describe("createEventModifiers", () => {
+		it("sends POST request to the captured v3 event modifiers endpoint", async () => {
+			// given
+			const mockResponse = {
+				success: true,
+				message: null,
+				data: [
+					{
+						id: "modifier-123",
+						event_id: "event-123",
+						action: "attendees/updateList",
+					},
+				],
+			};
+			fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
+				new Response(JSON.stringify(mockResponse), { status: 200 }),
+			);
+			const client = createClient();
+			const modifierPayload = {
+				id: "modifier-123",
+				akiflow_account_id: "akiflow-account-1",
+				event_id: "event-123",
+				calendar_id: "cal-123",
+				action: "attendees/updateList" as const,
+				content: {
+					attendeeEmailsToAdd: ["julia@example.com"],
+					attendeeEmailsToRemove: [],
+					attendeeResponseStatusesByEmail: {
+						"julia@example.com": "needsAction",
+					},
+					sendUpdates: "all" as const,
+				},
+				processed_at: null,
+				failed_at: null,
+				result: null,
+				attempts: 0,
+				global_created_at: "2026-06-19T22:42:58.271Z",
+				deleted_at: null,
+				global_updated_at: "2026-06-19T22:42:58.271Z",
+			};
+
+			// when
+			await client.createEventModifiers([modifierPayload]);
+
+			// then
+			expect(fetchSpy).toHaveBeenCalledWith(
+				"https://api.akiflow.com/v3/events/modifiers",
+				expect.objectContaining({
+					method: "POST",
+					headers: expect.objectContaining({
+						"Content-Type": "application/json",
+					}),
+					body: JSON.stringify([modifierPayload]),
+				}),
+			);
+		});
+	});
+
 	describe("credential loading", () => {
 		it("throws AuthError when no credentials available", async () => {
 			// given

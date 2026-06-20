@@ -307,6 +307,31 @@ export interface CreateEventPayload {
 	global_updated_at: string;
 }
 
+export type EventModifierAction = "attendees/updateList";
+
+export interface EventModifierPayload {
+	id: string;
+	akiflow_account_id: string | null;
+	event_id: string;
+	calendar_id: string;
+	action: EventModifierAction;
+	content: {
+		attendeeEmailsToAdd: string[];
+		attendeeEmailsToRemove: string[];
+		attendeeResponseStatusesByEmail?: Record<string, string>;
+		sendUpdates: "all";
+	};
+	processed_at: string | null;
+	failed_at: string | null;
+	result: unknown | null;
+	attempts: number;
+	global_created_at: string;
+	deleted_at: string | null;
+	global_updated_at: string;
+}
+
+export type EventModifier = EventModifierPayload;
+
 export interface Event {
 	id: string;
 	user_id: number;

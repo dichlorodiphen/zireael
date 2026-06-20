@@ -366,7 +366,7 @@ GET /v3/calendars?per_page=2500&with_deleted=true&updatedAfter=<ISO8601>
 ## Events API
 
 **Endpoint**: `/v3/events`  
-**Supported Methods**: `GET`, `POST` (create/update sync payload; CLI v1 uses create only)
+**Supported Methods**: `GET`, `POST` (create/update sync payload)
 
 ### Read Events
 
@@ -380,13 +380,14 @@ GET /v3/events?cursor=<base64>&with_deleted=false&per_page=2500
 
 ```bash
 GET /v3/events/modifiers?per_page=2500&with_deleted=false
+POST /v3/events/modifiers
 ```
 
 ### Create Timed Event
 
 Captured from Akiflow Web `2.74.24` on 2026-06-19. The web client builds a draft event model, strips `data`, `user_id`, and `fingerprints` in `getEntityForRemote()`, then calls `v3.postEvents(...)`, which is `POST /v3/events`.
 
-CLI support is intentionally narrow: timed, non-recurring Google Calendar events with no attendees, no conference link, no reminders, and no all-day mode.
+CLI create support is intentionally narrow: timed, non-recurring Google Calendar events with no attendees, no conference link, no reminders, and no all-day mode.
 
 ```bash
 POST /v3/events
@@ -462,6 +463,78 @@ Response shape matches other Akiflow API envelopes:
 ```
 
 Cleanup/delete behavior: the web UI deletes events by clearing event fields, setting `status` to `"cancelled"`, soft-deleting with `deleted_at`, then syncing through the same events sync path. CLI v1 does not implement event delete.
+
+### Update Timed Event
+
+Captured behavior uses the same endpoint and full event object array as creation:
+
+```bash
+POST /v3/events
+Content-Type: application/json
+```
+
+The web client sends the event model back through `v3.postEvents(...)`. For CLI v1, update starts from the cached event, refuses all-day/recurring/hidden/deleted/read-only/non-Google events, strips local-only `data`, `user_id`, and `fingerprints`, preserves unspecified fields and attendees, and changes only the requested timing/basic fields.
+
+Required update changes for timed events:
+
+```json
+{
+  "id": "<existing-event-id>",
+  "start_time": "2026-06-20T20:00:00.000Z",
+  "end_time": "2026-06-20T20:30:00.000Z",
+  "start_datetime_tz": "America/Los_Angeles",
+  "end_datetime_tz": "America/Los_Angeles",
+  "start_date": null,
+  "end_date": null,
+  "content": {
+    "sendUpdates": "all",
+    "location": "Office"
+  },
+  "global_updated_at": "2026-06-19T22:42:58.271Z"
+}
+```
+
+Optional update changes: `title`, `description`, and `content.location`. Existing attendees are preserved on the event object. Event delete remains out of CLI v1 scope.
+
+### Update Attendees
+
+Captured from Akiflow Web on 2026-06-19. The UI creates an event modifier record rather than posting the full event object for attendee list edits.
+
+```bash
+POST /v3/events/modifiers
+Content-Type: application/json
+```
+
+Request body is an array of event modifier objects:
+
+```json
+[
+  {
+    "id": "<client-generated-uuid>",
+    "akiflow_account_id": "<akiflow-account-id>",
+    "event_id": "<existing-event-id>",
+    "calendar_id": "<akiflow-calendar-id>",
+    "action": "attendees/updateList",
+    "content": {
+      "attendeeEmailsToAdd": ["julia@example.com"],
+      "attendeeEmailsToRemove": [],
+      "attendeeResponseStatusesByEmail": {
+        "julia@example.com": "needsAction"
+      },
+      "sendUpdates": "all"
+    },
+    "processed_at": null,
+    "failed_at": null,
+    "result": null,
+    "attempts": 0,
+    "global_created_at": "2026-06-19T22:42:58.271Z",
+    "deleted_at": null,
+    "global_updated_at": "2026-06-19T22:42:58.271Z"
+  }
+]
+```
+
+For attendee removal, `attendeeEmailsToAdd` is empty and `attendeeEmailsToRemove` contains existing attendee email addresses. `attendeeResponseStatusesByEmail` is only needed when adding attendees.
 
 ---
 

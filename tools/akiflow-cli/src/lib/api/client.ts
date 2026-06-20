@@ -6,6 +6,8 @@ import type {
 	CreateTaskPayload,
 	CreateTimeSlotPayload,
 	Event,
+	EventModifier,
+	EventModifierPayload,
 	Label,
 	Tag,
 	Task,
@@ -326,6 +328,16 @@ export class AkiflowClient {
 		events: CreateEventPayload[],
 	): Promise<ApiResponse<Event[]>> {
 		return this.request<Event[]>("POST", "/v3/events", events);
+	}
+
+	async createEventModifiers(
+		modifiers: EventModifierPayload[],
+	): Promise<ApiResponse<EventModifier[]>> {
+		return this.request<EventModifier[]>(
+			"POST",
+			"/v3/events/modifiers",
+			modifiers,
+		);
 	}
 }
 

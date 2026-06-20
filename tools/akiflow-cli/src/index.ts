@@ -11,6 +11,7 @@ import { convertCommand } from "./commands/convert";
 import { createCommand } from "./commands/create";
 import { doCommand } from "./commands/do";
 import { doctorCommand } from "./commands/doctor";
+import { eventCommand } from "./commands/event";
 import { lsCommand } from "./commands/ls";
 import { projectCommand } from "./commands/project";
 import { refreshCommand } from "./commands/refresh";
@@ -50,6 +51,7 @@ const main = defineCommand({
 		completion: completionCommand,
 		convert: convertCommand,
 		create: createCommand,
+		event: eventCommand,
 		cal,
 		block,
 		auth: authCommand,

@@ -29,7 +29,19 @@ af create event "Meeting" --date 2026-06-20 --at 13:00 --duration 30m --descript
 af create event "Rental pickup" --date 2026-06-20 --at 23:55 --duration 45m --description-file rental-details.txt
 ```
 
-`af create event` v1 creates timed, non-recurring Google Calendar events through Akiflow. Attendees, recurrence, conferencing, reminders, all-day events, updates, and deletes are not supported.
+`af create event` v1 creates timed, non-recurring Google Calendar events through Akiflow. Recurrence, conferencing, reminders, all-day events, and deletes are not supported.
+
+### af event
+
+Update timed Google Calendar events through Akiflow.
+
+```bash
+af event update <event-id> --date 2026-06-20 --at 14:30 --duration 45m --description-file details.txt
+af event attendees add <event-id> julia@example.com alex@example.com
+af event attendees remove <event-id> julia@example.com
+```
+
+`af event update` preserves unspecified fields and attendees, sends Google update notifications, and refuses all-day, recurring, hidden, deleted, read-only, or non-Google events. `af event attendees add|remove` skips no-op attendee changes and supports `--json`.
 
 ### af convert
 

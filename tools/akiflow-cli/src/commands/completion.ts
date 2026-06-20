@@ -93,6 +93,35 @@ const COMMANDS: Record<string, CommandInfo> = {
 			},
 		},
 	},
+	event: {
+		name: "event",
+		description: "Update timed Google calendar events through Akiflow",
+		flags: [],
+		subcommands: {
+			update: {
+				name: "update",
+				description: "Update timing and basic fields for a timed event",
+				flags: [],
+			},
+			attendees: {
+				name: "attendees",
+				description: "Manage attendee emails on a timed event",
+				flags: [],
+				subcommands: {
+					add: {
+						name: "add",
+						description: "Add attendee emails to a timed event",
+						flags: [],
+					},
+					remove: {
+						name: "remove",
+						description: "Remove attendee emails from a timed event",
+						flags: [],
+					},
+				},
+			},
+		},
+	},
 	ls: {
 		name: "ls",
 		description: "List tasks",
@@ -246,6 +275,18 @@ _af_completion() {
     return 0
   fi
 
+  # Complete subcommands for 'event'
+  if [[ "$main_cmd" == "event" && $cword -eq 2 ]]; then
+    COMPREPLY=($(compgen -W "update attendees" -- "$cur"))
+    return 0
+  fi
+
+  # Complete subcommands for 'event attendees'
+  if [[ "$main_cmd" == "event" && "\${words[2]}" == "attendees" && $cword -eq 3 ]]; then
+    COMPREPLY=($(compgen -W "add remove" -- "$cur"))
+    return 0
+  fi
+
   # Complete flags for 'add'
   if [[ "$main_cmd" == "add" ]]; then
     COMPREPLY=($(compgen -W "-t --today --tomorrow -d --date -p --project" -- "$cur"))
@@ -267,6 +308,12 @@ _af_completion() {
   # Complete flags for 'convert'
   if [[ "$main_cmd" == "convert" ]]; then
     COMPREPLY=($(compgen -W "--to --execute --delete-source --default-duration --include-connector-tasks --calendar --search --from --until --range-to --date --status --connector --priority --json" -- "$cur"))
+    return 0
+  fi
+
+  # Complete flags for 'event'
+  if [[ "$main_cmd" == "event" ]]; then
+    COMPREPLY=($(compgen -W "-d --date --at --duration --title --description --description-file --location --json" -- "$cur"))
     return 0
   fi
 
@@ -301,6 +348,7 @@ _af() {
     'do:Mark tasks as complete'
     'create:Create Akiflow tasks, task slots, or calendar events'
     'convert:Convert between Akiflow surfaces'
+    'event:Update timed Google calendar events through Akiflow'
     'ls:List tasks'
     'task:Task management commands'
     'project:Project management commands'
@@ -332,6 +380,16 @@ _af() {
     'tasks:Convert Akiflow tasks to another surface'
     'slots:Convert Akiflow slots to another surface'
     'events:Convert Akiflow events to another surface'
+  )
+
+  local -a event_subcommands=(
+    'update:Update timing and basic fields for a timed event'
+    'attendees:Manage attendee emails on a timed event'
+  )
+
+  local -a event_attendee_subcommands=(
+    'add:Add attendee emails to a timed event'
+    'remove:Remove attendee emails from a timed event'
   )
 
   local -a add_flags=(
@@ -392,6 +450,18 @@ _af() {
     '--json[Output JSON]'
   )
 
+  local -a event_flags=(
+    '-d[Event date]:date:'
+    '--date[Event date]:date:'
+    '--at[Local start time]:time:'
+    '--duration[Duration]:duration:'
+    '--title[New event title]:title:'
+    '--description[New event description]:description:'
+    '--description-file[Read description from file]:path:'
+    '--location[New event location]:location:'
+    '--json[Output JSON]'
+  )
+
   _arguments -C \\
     '1: :->command' \\
     '*::arg:->args'
@@ -428,6 +498,15 @@ _af() {
             _arguments $convert_flags
           fi
           ;;
+        event)
+          if [[ \${words[3]} == "attendees" && \${#words} -le 4 ]]; then
+            _describe 'subcommand' event_attendee_subcommands
+          elif [[ \${#words} -le 3 ]]; then
+            _describe 'subcommand' event_subcommands
+          else
+            _arguments $event_flags
+          fi
+          ;;
         completion)
           _describe 'shell' completion_shells
           ;;
@@ -449,6 +528,7 @@ complete -c af -f -n "__fish_use_subcommand_from_list" -a "add" -d "Create a new
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "do" -d "Mark tasks as complete"
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "create" -d "Create Akiflow tasks, task slots, or calendar events"
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "convert" -d "Convert between Akiflow surfaces"
+complete -c af -f -n "__fish_use_subcommand_from_list" -a "event" -d "Update timed Google calendar events through Akiflow"
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "ls" -d "List tasks"
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "task" -d "Task management commands"
 complete -c af -f -n "__fish_use_subcommand_from_list" -a "project" -d "Project management commands"
@@ -476,6 +556,12 @@ complete -c af -n "__fish_seen_subcommand_from create" -f -a "event" -d "Create 
 complete -c af -n "__fish_seen_subcommand_from convert" -f -a "tasks" -d "Convert Akiflow tasks to another surface"
 complete -c af -n "__fish_seen_subcommand_from convert" -f -a "slots" -d "Convert Akiflow slots to another surface"
 complete -c af -n "__fish_seen_subcommand_from convert" -f -a "events" -d "Convert Akiflow events to another surface"
+
+# Event subcommands
+complete -c af -n "__fish_seen_subcommand_from event" -f -a "update" -d "Update timing and basic fields for a timed event"
+complete -c af -n "__fish_seen_subcommand_from event" -f -a "attendees" -d "Manage attendee emails on a timed event"
+complete -c af -n "__fish_seen_subcommand_from attendees" -f -a "add" -d "Add attendee emails to a timed event"
+complete -c af -n "__fish_seen_subcommand_from attendees" -f -a "remove" -d "Remove attendee emails from a timed event"
 
 # Create command flags
 complete -c af -n "__fish_seen_subcommand_from create" -l description -d "Description"
@@ -506,6 +592,16 @@ complete -c af -n "__fish_seen_subcommand_from convert" -l status -d "Task statu
 complete -c af -n "__fish_seen_subcommand_from convert" -l connector -d "Connector"
 complete -c af -n "__fish_seen_subcommand_from convert" -l priority -d "Priority"
 complete -c af -n "__fish_seen_subcommand_from convert" -l json -d "Output JSON"
+
+# Event command flags
+complete -c af -n "__fish_seen_subcommand_from event" -s d -l date -d "Event date"
+complete -c af -n "__fish_seen_subcommand_from event" -l at -d "Local start time"
+complete -c af -n "__fish_seen_subcommand_from event" -l duration -d "Duration"
+complete -c af -n "__fish_seen_subcommand_from event" -l title -d "New event title"
+complete -c af -n "__fish_seen_subcommand_from event" -l description -d "New event description"
+complete -c af -n "__fish_seen_subcommand_from event" -l description-file -d "Read description from file"
+complete -c af -n "__fish_seen_subcommand_from event" -l location -d "New event location"
+complete -c af -n "__fish_seen_subcommand_from event" -l json -d "Output JSON"
 
 # Add command flags
 complete -c af -n "__fish_seen_subcommand_from add" -s t -l today -d "Schedule task for today"

@@ -20,6 +20,7 @@ Bun-native CLI for managing Akiflow tasks directly from the terminal. TypeScript
 
 - **Task management** — list, add, complete, edit, move, plan, snooze, delete
 - **Explicit create surfaces** — `af create task` for Akiflow tasks, `af create slot` for task slots that can contain linked tasks, and `af create event` for timed Google Calendar events through Akiflow
+- **Event mutations** — `af event update` adjusts timed Google Calendar events, and `af event attendees add|remove` manages attendee email lists through Akiflow
 - **Rich filtering** — by date range (`--today` / `--this-week` / `--from`/`--to`), bucket (`--bucket week`), status (`--inbox` / `--done` / `--trashed`), connector (`--connector gmail|linear`), tag, project, priority, recurring
 - **Unified calendar** — `af cal` merges events + time-slots + scheduled tasks into one timeline, with date-range filters and per-source toggles (`--no-events` / `--no-tasks` / `--no-slots`)
 - **Stable JSON output** — `--json` emits a cleaned shape we own (status word, plan-bucket as `YYYY-Www`, source object with `thread_id` for Gmail, etc.). `--raw` emits the unmodified API record.
@@ -169,7 +170,21 @@ af create event "Rental pickup" --date 2026-06-20 --at 23:55 --duration 45m \
   --description-file rental-details.txt
 ```
 
-`af create event` v1 supports timed, non-recurring Google Calendar events only. It accepts `title`, `--date`, `--at`, `--duration`, optional `--calendar`, `--description`, `--description-file`, `--location`, and `--json`. It does not support attendees, recurrence, conferencing/Meet links, reminders, all-day events, updates, or deletes.
+`af create event` v1 supports timed, non-recurring Google Calendar events only. It accepts `title`, `--date`, `--at`, `--duration`, optional `--calendar`, `--description`, `--description-file`, `--location`, and `--json`. Creation does not support recurrence, conferencing/Meet links, reminders, all-day events, or deletes.
+
+### `af event` — update calendar events
+
+```bash
+# Update timing and basic fields on an existing timed Google event
+af event update event-uuid --date 2026-06-20 --at 14:30 --duration 45m \
+  --title "Updated meeting" --description-file details.txt --location "Office"
+
+# Add or remove attendee emails; additional emails may follow
+af event attendees add event-uuid julia@example.com alex@example.com
+af event attendees remove event-uuid julia@example.com
+```
+
+`af event` v1 works only on cached, timed, non-recurring, writable Google calendar events. Event IDs can be full UUIDs or unique prefixes. `af event update` preserves unspecified fields and attendees, sends Google update notifications, and refuses all-day, recurring, hidden, deleted, read-only, or non-Google events. Attendee add/remove uses Akiflow's event modifier API and skips no-op changes.
 
 ### `af convert` — convert between Akiflow surfaces
 
