@@ -218,6 +218,19 @@ function filterTasks(tasks: Task[], options: LsOptions): Task[] {
 	return filtered;
 }
 
+function taskSearchMatches(task: Task, search: string | undefined): boolean {
+	if (!search) return true;
+	const q = search.toLowerCase();
+	const title = task.title?.toLowerCase() ?? "";
+	const description = task.description?.toLowerCase() ?? "";
+	const originalMessage =
+		(task.doc?.original_message as string | undefined)?.toLowerCase() ?? "";
+
+	return (
+		title.includes(q) || description.includes(q) || originalMessage.includes(q)
+	);
+}
+
 function colorizeStatus(done: boolean): string {
 	if (done) {
 		return `\x1b[32m✓\x1b[0m`;
@@ -434,9 +447,9 @@ function buildExtendedFilter(args: Record<string, unknown>): TaskFilter {
 	return f;
 }
 
-export const lsCommand = defineCommand({
+export const taskListCommand = defineCommand({
 	meta: {
-		name: "ls",
+		name: "list",
 		description: "List tasks with filters",
 	},
 	args: {
@@ -558,10 +571,12 @@ export const lsCommand = defineCommand({
 					? addVirtualRecurringTasksForToday(tasks)
 					: tasks;
 
-			let filteredTasks = filterTasks(tasksWithVirtualRecurring, options);
-			if (useExtended) {
-				filteredTasks = applyExtendedFilters(filteredTasks, extendedFilter);
-			}
+			const filteredTasks = useExtended
+				? applyExtendedFilters(
+						tasksWithVirtualRecurring,
+						extendedFilter,
+					).filter((task) => taskSearchMatches(task, options.search))
+				: filterTasks(tasksWithVirtualRecurring, options);
 
 			if (args.raw) {
 				const output = JSON.stringify(
@@ -613,3 +628,5 @@ export const lsCommand = defineCommand({
 		}
 	},
 });
+
+export const lsCommand = taskListCommand;

@@ -28,7 +28,7 @@ afterEach(async () => {
 	env.cleanup();
 });
 
-describe("af create event (BDD)", () => {
+describe("af event create (BDD)", () => {
 	test("creates a timed event through the captured v3 events endpoint", async () => {
 		const testEnv = { ...env.env, TZ: "UTC" };
 		const expectedStart = new Date(2026, 5, 20, 9, 0).toISOString();
@@ -40,8 +40,8 @@ describe("af create event (BDD)", () => {
 
 		const result = await spawnCli(
 			[
-				"create",
 				"event",
+				"create",
 				"Integration event",
 				"--date",
 				"2026-06-20",

@@ -242,6 +242,108 @@ describe("cal command", () => {
 		consoleLogSpy.mockRestore();
 	});
 
+	it("filters events, slots, and scheduled tasks by --calendar", async () => {
+		// given
+		mockMergedCalendarData({
+			calendars: [
+				{ id: "cal1", title: "Primary", hidden_at: null, deleted_at: null },
+				{ id: "cal2", title: "Other", hidden_at: null, deleted_at: null },
+			] as Calendar[],
+			events: [
+				{
+					id: "event-1",
+					calendar_id: "cal1",
+					title: "Selected event",
+					description: null,
+					start_time: new Date(2026, 5, 22, 9, 0).toISOString(),
+					end_time: new Date(2026, 5, 22, 10, 0).toISOString(),
+					start_date: null,
+					end_date: null,
+					declined: false,
+					deleted_at: null,
+					hidden: false,
+					status: "confirmed",
+				} as Event,
+				{
+					id: "event-2",
+					calendar_id: "cal2",
+					title: "Filtered event",
+					description: null,
+					start_time: new Date(2026, 5, 22, 10, 0).toISOString(),
+					end_time: new Date(2026, 5, 22, 11, 0).toISOString(),
+					start_date: null,
+					end_date: null,
+					declined: false,
+					deleted_at: null,
+					hidden: false,
+					status: "confirmed",
+				} as Event,
+			],
+			slots: [
+				{
+					...mockTimeSlots[0]!,
+					id: "slot-1",
+					calendar_id: "cal1",
+					title: "Selected slot",
+					start_time: new Date(2026, 5, 22, 11, 0).toISOString(),
+					end_time: new Date(2026, 5, 22, 12, 0).toISOString(),
+				},
+				{
+					...mockTimeSlots[0]!,
+					id: "slot-2",
+					calendar_id: "cal2",
+					title: "Filtered slot",
+					start_time: new Date(2026, 5, 22, 12, 0).toISOString(),
+					end_time: new Date(2026, 5, 22, 13, 0).toISOString(),
+				},
+			],
+			tasks: [
+				{
+					id: "task-1",
+					title: "Selected task",
+					description: null,
+					datetime: new Date(2026, 5, 22, 13, 0).toISOString(),
+					duration: 1800,
+					calendar_id: "cal1",
+				} as Task,
+				{
+					id: "task-2",
+					title: "Filtered task",
+					description: null,
+					datetime: new Date(2026, 5, 22, 14, 0).toISOString(),
+					duration: 1800,
+					calendar_id: "cal2",
+				} as Task,
+			],
+		});
+
+		const consoleLogSpy = spyOn(console, "log");
+
+		// when
+		await cal.run!({
+			args: {
+				free: false,
+				date: "2026-06-22",
+				calendar: "cal1",
+				json: true,
+				_: [],
+			} as never,
+			rawArgs: [],
+		} as never);
+
+		// then
+		const output = consoleLogSpy.mock.calls.join("\n");
+		const report = JSON.parse(output);
+		const titles = report.result.map((entry: { title: string }) => entry.title);
+		expect(titles).toEqual([
+			"Selected event",
+			"Selected slot",
+			"Selected task",
+		]);
+
+		consoleLogSpy.mockRestore();
+	});
+
 	it("shows free slots header when minimal slots available", async () => {
 		// given
 		// Even with a full day event (00:00-23:59:59), a tiny gap may exist

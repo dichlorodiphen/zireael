@@ -14,6 +14,7 @@ import {
 	parseTime,
 } from "../lib/date-parser";
 import { parseDurationToSeconds } from "../lib/duration-parser";
+import { createEventCommand } from "./create";
 
 type MutableEvent = Record<string, unknown>;
 
@@ -511,9 +512,10 @@ const eventAttendeesCommand = defineCommand({
 export const eventCommand = defineCommand({
 	meta: {
 		name: "event",
-		description: "Update timed Google calendar events through Akiflow",
+		description: "Manage timed Google calendar events through Akiflow",
 	},
 	subCommands: {
+		create: createEventCommand,
 		update: eventUpdateCommand,
 		attendees: eventAttendeesCommand,
 	},

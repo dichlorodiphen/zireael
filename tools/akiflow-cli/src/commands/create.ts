@@ -98,7 +98,7 @@ export async function resolveCreateEventCalendar(
 
 	if (calendar.connector_id !== "google") {
 		console.error(
-			`Error: af create event supports Google calendars only in v1. Calendar "${calendar.id}" uses connector "${calendar.connector_id}".`,
+			`Error: af event create supports Google calendars only in v1. Calendar "${calendar.id}" uses connector "${calendar.connector_id}".`,
 		);
 		process.exit(1);
 	}
@@ -227,7 +227,7 @@ async function resolveProjectId(projectName: string | undefined) {
 
 export const createTaskCommand = defineCommand({
 	meta: {
-		name: "task",
+		name: "create",
 		description: "Create an Akiflow task",
 	},
 	args: {
@@ -347,7 +347,7 @@ export const createTaskCommand = defineCommand({
 
 export const createSlotCommand = defineCommand({
 	meta: {
-		name: "slot",
+		name: "create",
 		description: "Create an Akiflow task slot, optionally containing tasks",
 	},
 	args: {
@@ -527,7 +527,7 @@ export const createSlotCommand = defineCommand({
 
 export const createEventCommand = defineCommand({
 	meta: {
-		name: "event",
+		name: "create",
 		description: "Create a timed Google calendar event through Akiflow",
 	},
 	args: {
@@ -631,17 +631,5 @@ export const createEventCommand = defineCommand({
 		console.log(`  Calendar: ${calendar.title} (${calendar.id})`);
 		console.log(`  Time: ${at} (${durationInput})`);
 		if (location) console.log(`  Location: ${location}`);
-	},
-});
-
-export const createCommand = defineCommand({
-	meta: {
-		name: "create",
-		description: "Create Akiflow tasks, task slots, or calendar events",
-	},
-	subCommands: {
-		task: createTaskCommand,
-		slot: createSlotCommand,
-		event: createEventCommand,
 	},
 });

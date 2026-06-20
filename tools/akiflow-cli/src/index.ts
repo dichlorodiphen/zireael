@@ -1,31 +1,17 @@
 #!/usr/bin/env bun
 import { defineCommand, runMain } from "citty";
 import pkg from "../package.json" with { type: "json" };
-import { add } from "./commands/add";
 import { authCommand } from "./commands/auth";
-import { block } from "./commands/block";
 import { cacheCommand } from "./commands/cache";
 import { cal } from "./commands/cal";
 import { completionCommand } from "./commands/completion";
 import { convertCommand } from "./commands/convert";
-import { createCommand } from "./commands/create";
-import { doCommand } from "./commands/do";
 import { doctorCommand } from "./commands/doctor";
 import { eventCommand } from "./commands/event";
-import { lsCommand } from "./commands/ls";
 import { projectCommand } from "./commands/project";
 import { refreshCommand } from "./commands/refresh";
+import { slotCommand } from "./commands/slot";
 import { taskCommand } from "./commands/task";
-
-const hello = defineCommand({
-	meta: {
-		name: "hello",
-		description: "Say hello",
-	},
-	run: async () => {
-		console.log("Hello from Akiflow CLI!");
-	},
-});
 
 const main = defineCommand({
 	meta: {
@@ -42,22 +28,17 @@ const main = defineCommand({
 		version: pkg.version,
 	},
 	subCommands: {
-		add,
-		hello,
-		do: doCommand,
-		ls: lsCommand,
 		task: taskCommand,
-		project: projectCommand,
-		completion: completionCommand,
-		convert: convertCommand,
-		create: createCommand,
 		event: eventCommand,
+		slot: slotCommand,
+		convert: convertCommand,
 		cal,
-		block,
+		project: projectCommand,
 		auth: authCommand,
 		cache: cacheCommand,
 		doctor: doctorCommand,
 		refresh: refreshCommand,
+		completion: completionCommand,
 	},
 });
 

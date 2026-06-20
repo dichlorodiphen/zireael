@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { defineCommand } from "citty";
 import { createClient } from "../../lib/api/client";
 import type { UpdateTaskPayload } from "../../lib/api/types";
@@ -9,74 +9,14 @@ import {
 	parseDate,
 	parseTime,
 } from "../../lib/date-parser";
-import { parseDuration } from "../../lib/duration-parser";
-import { cacheFile } from "../../lib/platform-config";
-
-interface ContextFile {
-	tasks: Array<{
-		shortId: number;
-		id: string;
-		title: string;
-	}>;
-	timestamp: number;
-}
-
-function getContextFilePath(): string {
-	return cacheFile("last-list.json");
-}
-
-function readContextFile(): ContextFile | null {
-	try {
-		const path = getContextFilePath();
-		const content = readFileSync(path, "utf-8");
-		return JSON.parse(content) as ContextFile;
-	} catch {
-		return null;
-	}
-}
-
-function resolveTaskId(
-	identifier: string,
-	context: ContextFile | null,
-): string | null {
-	// If identifier looks like a full UUID (36 chars with dashes), return it directly
-	const uuidRegex =
-		/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-	if (uuidRegex.test(identifier)) {
-		return identifier;
-	}
-
-	// If no context, can't resolve short IDs or partial UUIDs
-	if (!context) {
-		return null;
-	}
-
-	const shortId = parseInt(identifier, 10);
-	if (!Number.isNaN(shortId)) {
-		const task = context.tasks.find((t) => t.shortId === shortId);
-		if (task) {
-			return task.id;
-		}
-		return null;
-	}
-
-	const matchingTasks = context.tasks.filter((t) =>
-		t.id.toLowerCase().startsWith(identifier.toLowerCase()),
-	);
-
-	if (matchingTasks.length === 1) {
-		return matchingTasks[0]?.id ?? null;
-	}
-
-	if (matchingTasks.length > 1) {
-		console.error(
-			`Error: Ambiguous UUID "${identifier}" matches ${matchingTasks.length} tasks`,
-		);
-		return null;
-	}
-
-	return null;
-}
+import {
+	parseDuration,
+	parseDurationToSeconds,
+} from "../../lib/duration-parser";
+import { readTaskContext, resolveTaskId } from "../../lib/task-context";
+import { createTaskCommand } from "../create";
+import { taskCompleteCommand } from "../do";
+import { taskListCommand } from "../ls";
 
 function formatDate(date: Date): string {
 	const year = date.getFullYear();
@@ -85,128 +25,139 @@ function formatDate(date: Date): string {
 	return `${year}-${month}-${day}`;
 }
 
-export const taskEditCommand = defineCommand({
+function fail(message: string): never {
+	console.error(`Error: ${message}`);
+	process.exit(1);
+}
+
+function resolveTaskIdentifier(identifier: string): string {
+	const contextFile = readTaskContext();
+	try {
+		const taskId = resolveTaskId(identifier, contextFile);
+		if (taskId) return taskId;
+	} catch (error) {
+		fail(error instanceof Error ? error.message : String(error));
+	}
+
+	const suffix = contextFile
+		? ""
+		: " Short IDs and partial IDs require context. Run 'af task list --plain' first or provide a full UUID.";
+	fail(`Could not resolve task ID "${identifier}".${suffix}`);
+}
+
+async function resolveDescriptionUpdate(
+	description: string | undefined,
+	descriptionFile: string | undefined,
+): Promise<string | undefined> {
+	if (description !== undefined && descriptionFile !== undefined) {
+		fail("Use either --description or --description-file, not both");
+	}
+
+	if (descriptionFile === undefined) return description;
+
+	try {
+		return await readFile(descriptionFile, "utf-8");
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		fail(`Could not read description file "${descriptionFile}": ${message}`);
+	}
+}
+
+export const taskUpdateCommand = defineCommand({
 	meta: {
-		name: "edit",
-		description: "Show editable fields for a task",
+		name: "update",
+		description: "Update basic fields for an Akiflow task",
 	},
 	args: {
 		id: {
-			type: "string",
-			description: "Task ID (short ID or UUID)",
+			type: "positional",
+			description: "Task ID, short ID, or unique ID prefix",
 			required: true,
 		},
-	},
-	run: async (context) => {
-		const id = context.args.id as string;
-		const contextFile = readContextFile();
-
-		const taskId = resolveTaskId(id, contextFile);
-		if (!taskId) {
-			console.error(
-				`Error: Could not resolve task ID "${id}". Run 'af ls' first or provide a full UUID.`,
-			);
-			process.exit(1);
-		}
-
-		const client = createClient();
-
-		try {
-			const response = await client.getTask(taskId);
-			if (!response.success || !response.data) {
-				console.error("Error: Failed to fetch task");
-				process.exit(1);
-			}
-
-			const task = response.data;
-
-			console.log(`Task: ${task.title}`);
-			console.log(`ID: ${task.id}`);
-			console.log(`Description: ${task.description || "(none)"}`);
-			console.log(`Date: ${task.date || "(not scheduled)"}`);
-			console.log(
-				`Status: ${task.status === 2 ? "Done" : task.status === 0 ? "Deleted" : "Active"}`,
-			);
-			console.log(`Priority: ${task.priority || "(none)"}`);
-			console.log(
-				`Duration: ${task.duration ? `${task.duration}ms` : "(none)"}`,
-			);
-			console.log(`Due date: ${task.due_date || "(none)"}`);
-			console.log(`Project ID: ${task.listId || "(none)"}`);
-			console.log(
-				`Tags: ${task.tags_ids.length > 0 ? task.tags_ids.join(", ") : "(none)"}`,
-			);
-			console.log("\nEditable fields:");
-			console.log("  Use 'af task move <id> <project>' to change project");
-			console.log("  Use 'af task plan <id> <date>' to schedule task");
-			console.log("  Use 'af task snooze <id> <duration>' to push back task");
-			console.log("  Use 'af task delete <id>' to delete task");
-		} catch (error) {
-			console.error("Error: Failed to edit task");
-			if (error instanceof Error) {
-				console.error(error.message);
-			}
-			process.exit(1);
-		}
-	},
-});
-
-export const taskMoveCommand = defineCommand({
-	meta: {
-		name: "move",
-		description: "Move task to a project",
-	},
-	args: {
-		id: {
+		title: {
 			type: "string",
-			description: "Task ID (short ID or UUID)",
-			required: true,
+			description: "New task title",
+		},
+		description: {
+			type: "string",
+			description: "New task description",
+		},
+		"description-file": {
+			type: "string",
+			description: "Read task description from a UTF-8 text file",
+		},
+		duration: {
+			type: "string",
+			description: "Task duration (e.g., '30m', '1h')",
 		},
 		project: {
 			type: "string",
-			description: "Project ID to move task to",
-			required: true,
+			description: "Project/list id",
+		},
+		priority: {
+			type: "string",
+			description: "Priority 1-3",
+		},
+		json: {
+			type: "boolean",
+			description: "Output updated task as JSON",
 		},
 	},
 	run: async (context) => {
-		const id = context.args.id as string;
-		const projectId = context.args.project as string;
-		const contextFile = readContextFile();
-
-		const taskId = resolveTaskId(id, contextFile);
-		if (!taskId) {
-			console.error(
-				`Error: Could not resolve task ID "${id}". Run 'af ls' first or provide a full UUID.`,
-			);
-			process.exit(1);
-		}
-
-		const client = createClient();
+		const args = context.args as Record<string, unknown>;
+		const taskId = resolveTaskIdentifier(args.id as string);
+		const description = await resolveDescriptionUpdate(
+			args.description as string | undefined,
+			args["description-file"] as string | undefined,
+		);
 		const timestamp = new Date().toISOString();
-
 		const updatePayload: UpdateTaskPayload = {
 			id: taskId,
-			listId: projectId,
 			global_updated_at: timestamp,
 		};
 
-		try {
-			const response = await client.upsertTasks([updatePayload]);
+		if (args.title !== undefined) updatePayload.title = args.title as string;
+		if (description !== undefined) updatePayload.description = description;
+		if (args.duration !== undefined) {
+			updatePayload.duration = parseDurationToSeconds(args.duration as string);
+		}
+		if (args.project !== undefined)
+			updatePayload.listId = args.project as string;
+		if (args.priority !== undefined) {
+			const priority = Number(args.priority);
+			if (!Number.isInteger(priority) || priority < 1 || priority > 3) {
+				fail("Priority must be 1, 2, or 3");
+			}
+			updatePayload.priority = priority;
+		}
 
-			if (response.success) {
-				console.log(`✓ Moved task "${id}" to project "${projectId}"`);
-			} else {
-				console.error("Error: Failed to move task");
-				console.error(response.message);
-				process.exit(1);
-			}
-		} catch (error) {
-			console.error("Error: Failed to move task");
-			if (error instanceof Error) {
-				console.error(error.message);
-			}
+		const changedKeys = Object.keys(updatePayload).filter(
+			(key) => key !== "id" && key !== "global_updated_at",
+		);
+		if (changedKeys.length === 0) {
+			fail(
+				"No changes provided. Pass --title, --description, --description-file, --duration, --project, or --priority.",
+			);
+		}
+
+		const client = createClient();
+		const response = await client.upsertTasks([updatePayload]);
+		const updatedTask = response.data[0];
+
+		if (!response.success || !updatedTask) {
+			console.error("Error: Failed to update task");
+			if (response.message) console.error(response.message);
 			process.exit(1);
 		}
+
+		if (args.json === true) {
+			console.log(JSON.stringify(updatedTask, null, 2));
+			return;
+		}
+
+		console.log("✓ Updated task successfully");
+		console.log(`  ID: ${updatedTask.id}`);
+		console.log(`  Title: ${updatedTask.title ?? updatePayload.title ?? ""}`);
 	},
 });
 
@@ -217,7 +168,7 @@ export const taskPlanCommand = defineCommand({
 	},
 	args: {
 		id: {
-			type: "string",
+			type: "positional",
 			description: "Task ID (short ID or UUID)",
 			required: true,
 		},
@@ -236,15 +187,7 @@ export const taskPlanCommand = defineCommand({
 		const id = context.args.id as string;
 		const dateArg = context.args.date as string | undefined;
 		const atArg = context.args.at as string | undefined;
-		const contextFile = readContextFile();
-
-		const taskId = resolveTaskId(id, contextFile);
-		if (!taskId) {
-			console.error(
-				`Error: Could not resolve task ID "${id}". Run 'af ls' first or provide a full UUID.`,
-			);
-			process.exit(1);
-		}
+		const taskId = resolveTaskIdentifier(id);
 
 		let dateStr: string;
 
@@ -333,7 +276,7 @@ export const taskSnoozeCommand = defineCommand({
 	},
 	args: {
 		id: {
-			type: "string",
+			type: "positional",
 			description: "Task ID (short ID or UUID)",
 			required: true,
 		},
@@ -346,15 +289,7 @@ export const taskSnoozeCommand = defineCommand({
 	run: async (context) => {
 		const id = context.args.id as string;
 		const durationArg = context.args.duration as string;
-		const contextFile = readContextFile();
-
-		const taskId = resolveTaskId(id, contextFile);
-		if (!taskId) {
-			console.error(
-				`Error: Could not resolve task ID "${id}". Run 'af ls' first or provide a full UUID.`,
-			);
-			process.exit(1);
-		}
+		const taskId = resolveTaskIdentifier(id);
 
 		let snoozeDuration: number;
 		try {
@@ -421,22 +356,14 @@ export const taskDeleteCommand = defineCommand({
 	},
 	args: {
 		id: {
-			type: "string",
+			type: "positional",
 			description: "Task ID (short ID or UUID)",
 			required: true,
 		},
 	},
 	run: async (context) => {
 		const id = context.args.id as string;
-		const contextFile = readContextFile();
-
-		const taskId = resolveTaskId(id, contextFile);
-		if (!taskId) {
-			console.error(
-				`Error: Could not resolve task ID "${id}". Run 'af ls' first or provide a full UUID.`,
-			);
-			process.exit(1);
-		}
+		const taskId = resolveTaskIdentifier(id);
 
 		const client = createClient();
 		const timestamp = new Date().toISOString();
@@ -473,18 +400,12 @@ export const taskCommand = defineCommand({
 		description: "Task management subcommands",
 	},
 	subCommands: {
-		edit: taskEditCommand,
-		move: taskMoveCommand,
+		list: taskListCommand,
+		create: createTaskCommand,
+		complete: taskCompleteCommand,
+		update: taskUpdateCommand,
 		plan: taskPlanCommand,
 		snooze: taskSnoozeCommand,
 		delete: taskDeleteCommand,
-	},
-	run: async () => {
-		console.log("Task management subcommands:");
-		console.log("  edit   - Show editable fields for a task");
-		console.log("  move   - Move task to a project");
-		console.log("  plan   - Schedule task for a specific date");
-		console.log("  snooze - Push task back by a duration");
-		console.log("  delete - Soft delete a task");
 	},
 });

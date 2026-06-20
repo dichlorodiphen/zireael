@@ -3,7 +3,7 @@ import { describe, expect, it } from "bun:test";
 import { projectCommand } from "../../commands/project";
 
 describe("project command", () => {
-	it("has ls subcommand", () => {
+	it("has list subcommand", () => {
 		// given
 		const subCommands = projectCommand.subCommands as Record<
 			string,
@@ -15,49 +15,11 @@ describe("project command", () => {
 		>;
 
 		// when
-		const lsCommand = subCommands?.ls;
+		const listCommand = subCommands?.list;
 
 		// then
-		expect(lsCommand).toBeDefined();
-		expect(lsCommand?.meta?.name).toBe("ls");
-	});
-
-	it("has create subcommand", () => {
-		// given
-		const subCommands = projectCommand.subCommands as Record<
-			string,
-			{
-				meta?: { name?: string; description?: string };
-				run?: (ctx?: unknown) => Promise<void>;
-				args?: Record<string, { type?: string }>;
-			}
-		>;
-
-		// when
-		const createCommand = subCommands?.create;
-
-		// then
-		expect(createCommand).toBeDefined();
-		expect(createCommand?.meta?.name).toBe("create");
-	});
-
-	it("has delete subcommand", () => {
-		// given
-		const subCommands = projectCommand.subCommands as Record<
-			string,
-			{
-				meta?: { name?: string; description?: string };
-				run?: (ctx?: unknown) => Promise<void>;
-				args?: Record<string, { type?: string }>;
-			}
-		>;
-
-		// when
-		const deleteCommand = subCommands?.delete;
-
-		// then
-		expect(deleteCommand).toBeDefined();
-		expect(deleteCommand?.meta?.name).toBe("delete");
+		expect(listCommand).toBeDefined();
+		expect(listCommand?.meta?.name).toBe("list");
 	});
 
 	it("project command has correct metadata", () => {
@@ -73,67 +35,10 @@ describe("project command", () => {
 		expect(description).toContain("project");
 	});
 
-	it("create subcommand has color argument", () => {
+	it("only exposes read-only list subcommand", () => {
 		// given
-		const createCommand = (
-			projectCommand.subCommands as Record<
-				string,
-				{
-					meta?: { name?: string; description?: string };
-					run?: (ctx?: unknown) => Promise<void>;
-					args?: Record<string, { type?: string }>;
-				}
-			>
-		)?.create;
+		const subCommands = projectCommand.subCommands as Record<string, unknown>;
 
-		// when
-		const args = createCommand?.args;
-
-		// then
-		expect(args).toBeDefined();
-		expect(args?.color).toBeDefined();
-		expect(args?.color?.type).toBe("string");
-	});
-
-	it("delete subcommand has name argument", () => {
-		// given
-		const deleteCommand = (
-			projectCommand.subCommands as Record<
-				string,
-				{
-					meta?: { name?: string; description?: string };
-					run?: (ctx?: unknown) => Promise<void>;
-					args?: Record<string, { type?: string }>;
-				}
-			>
-		)?.delete;
-
-		// when
-		const args = deleteCommand?.args;
-
-		// then
-		expect(args).toBeDefined();
-		expect(args?.name).toBeDefined();
-		expect(args?.name?.type).toBe("string");
-	});
-
-	it("ls subcommand has no required arguments", () => {
-		// given
-		const lsCommand = (
-			projectCommand.subCommands as Record<
-				string,
-				{
-					meta?: { name?: string; description?: string };
-					run?: (ctx?: unknown) => Promise<void>;
-					args?: Record<string, { type?: string }>;
-				}
-			>
-		)?.ls;
-
-		// when
-		const args = lsCommand?.args;
-
-		// then
-		expect(args).toBeUndefined();
+		expect(Object.keys(subCommands)).toEqual(["list"]);
 	});
 });

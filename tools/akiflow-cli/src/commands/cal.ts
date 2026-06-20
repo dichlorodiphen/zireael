@@ -323,14 +323,18 @@ async function runMergedCalendar(args: Record<string, unknown>): Promise<void> {
 	const toMs = ef.range.to.getTime();
 	const slotsFiltered = slotsResp.data.filter((s) => {
 		const t = new Date(s.start_time).getTime();
-		return t >= fromMs && t <= toMs;
+		if (t < fromMs || t > toMs) return false;
+		if (ef.calendar && s.calendar_id !== ef.calendar) return false;
+		return true;
 	});
 
 	// Filter tasks: only those with a datetime in the range
 	const tasksFiltered = tasksResp.data.filter((t) => {
 		if (!t.datetime) return false;
 		const ts = new Date(t.datetime).getTime();
-		return ts >= fromMs && ts <= toMs;
+		if (ts < fromMs || ts > toMs) return false;
+		if (ef.calendar && t.calendar_id !== ef.calendar) return false;
+		return true;
 	});
 
 	const merged = filterTimelineBySearch(

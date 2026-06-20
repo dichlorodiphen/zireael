@@ -41,9 +41,13 @@ describe("filterEvents", () => {
 		).toEqual(["a", "b"]);
 	});
 
-	test("date range filters by start_time", () => {
+	test("date range includes timed events that overlap the range", () => {
 		const events = [
-			ev({ id: "before", start_time: "2026-05-20T10:00:00Z" }),
+			ev({
+				id: "overlap",
+				start_time: "2026-05-20T23:00:00Z",
+				end_time: "2026-05-21T01:00:00Z",
+			}),
 			ev({ id: "in", start_time: "2026-05-21T10:00:00Z" }),
 			ev({ id: "after", start_time: "2026-05-22T10:00:00Z" }),
 		];
@@ -52,7 +56,7 @@ describe("filterEvents", () => {
 				from: new Date("2026-05-21T00:00:00Z"),
 				to: new Date("2026-05-21T23:59:59Z"),
 			}).map((e) => e.id),
-		).toEqual(["in"]);
+		).toEqual(["overlap", "in"]);
 	});
 
 	test("date range filters all-day events by local start_date", () => {

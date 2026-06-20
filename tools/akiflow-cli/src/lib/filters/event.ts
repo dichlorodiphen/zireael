@@ -51,7 +51,8 @@ function eventIntersectsRange(e: Event, from: Date, to: Date): boolean {
 
 	if (e.start_time) {
 		const startMs = new Date(e.start_time).getTime();
-		return startMs >= fromMs && startMs <= toMs;
+		const endMs = e.end_time ? new Date(e.end_time).getTime() : startMs;
+		return startMs <= toMs && endMs >= fromMs;
 	}
 
 	if (!e.start_date) return false;

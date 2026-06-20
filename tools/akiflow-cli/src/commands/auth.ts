@@ -112,7 +112,9 @@ async function interactiveAuth(): Promise<void> {
 	if (selected.refreshToken) {
 		console.log("Refresh token saved for automatic token renewal");
 	}
-	console.log("You can now use af commands like 'af ls' and 'af add'");
+	console.log(
+		"You can now use af commands like 'af task list' and 'af task create'",
+	);
 }
 
 /**

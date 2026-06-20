@@ -11,7 +11,7 @@ beforeEach(async () => {
 	server = new FakeAkiflowServer();
 	await server.start();
 	loadAllFixtures(server);
-	// Echo back the upserted task(s) so `af do` sees data to confirm completion
+	// Echo back the upserted task(s) so `af task complete` sees data to confirm completion
 	server.respondTo("PATCH", "/v5/tasks", ({ body }: { body: string }) => {
 		const upserts = JSON.parse(body) as Array<Record<string, unknown>>;
 		return { success: true, message: null, data: upserts };
@@ -23,21 +23,16 @@ afterEach(async () => {
 	env.cleanup();
 });
 
-describe("af do (BDD — locks current upstream behavior)", () => {
+describe("af task complete (BDD)", () => {
 	test("marks task as done via PATCH /v5/tasks", async () => {
-		// `af do` resolves short IDs / partial UUIDs via the cached
-		// "last-list" context file. Run `af ls` first so the fixture
-		// tasks (including `task-today-1`) land in that cache; without
-		// this prelude, `af do` exits with "No task context found".
-		const lsResult = await spawnCli(["ls"], { env: env.env });
+		const lsResult = await spawnCli(["task", "list"], { env: env.env });
 		if (lsResult.exitCode !== 0) {
 			console.error("LS STDOUT:", lsResult.stdout);
 			console.error("LS STDERR:", lsResult.stderr);
 		}
 		expect(lsResult.exitCode).toBe(0);
 
-		// `af do` expects --ids (per the command's citty surface)
-		const result = await spawnCli(["do", "--ids", "task-today-1"], {
+		const result = await spawnCli(["task", "complete", "task-today-1"], {
 			env: env.env,
 		});
 		if (result.exitCode !== 0) {

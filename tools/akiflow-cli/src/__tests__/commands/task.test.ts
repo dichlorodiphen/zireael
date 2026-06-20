@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
-import { taskPlanCommand } from "../../commands/task/index";
+import { taskPlanCommand, taskUpdateCommand } from "../../commands/task/index";
 import * as storage from "../../lib/auth/storage";
 
 const mockCredentials = {
@@ -36,6 +36,53 @@ describe("taskPlanCommand", () => {
 		fetchSpy.mockRestore();
 		loadCredentialsSpy.mockRestore();
 		readFileSyncSpy.mockRestore();
+	});
+
+	it("updates basic task fields", async () => {
+		// given
+		fetchSpy.mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					success: true,
+					message: null,
+					data: [
+						{
+							id: "task-uuid-1",
+							title: "Updated task",
+							duration: 2700,
+							priority: 2,
+						},
+					],
+				}),
+				{ status: 200 },
+			),
+		);
+		const consoleLogSpy = spyOn(console, "log");
+
+		// when
+		await taskUpdateCommand.run!({
+			args: {
+				id: "task-uuid-1",
+				title: "Updated task",
+				duration: "45m",
+				priority: "2",
+				_: [],
+			},
+			rawArgs: [],
+		} as any);
+
+		// then
+		const fetchCall = fetchSpy.mock.calls[0];
+		const requestBody = JSON.parse(fetchCall[1]?.body as string);
+		expect(requestBody[0]).toMatchObject({
+			id: "task-uuid-1",
+			title: "Updated task",
+			duration: 2700,
+			priority: 2,
+		});
+		expect(consoleLogSpy).toHaveBeenCalledWith("✓ Updated task successfully");
+
+		consoleLogSpy.mockRestore();
 	});
 
 	it("schedules task with YYYY-MM-DD date format", async () => {

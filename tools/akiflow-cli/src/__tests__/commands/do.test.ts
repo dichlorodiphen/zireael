@@ -23,7 +23,7 @@ const mockContextFile = {
 	timestamp: Date.now(),
 };
 
-describe("do command", () => {
+describe("task complete command", () => {
 	// Track every spyOn() return value created during a test so the
 	// afterEach can mockRestore() them. Without this, `spyOn(globalThis,
 	// "fetch")` calls leak across tests — later tests pick up an existing
@@ -99,7 +99,7 @@ describe("do command", () => {
 		);
 
 		const mockContext = {
-			args: { ids: "1" },
+			args: { id: "1" },
 		};
 
 		await doCommand.run?.(mockContext as any);
@@ -142,7 +142,7 @@ describe("do command", () => {
 		);
 
 		const mockContext = {
-			args: { ids: ["1", "2"] },
+			args: { id: ["1", "2"] },
 		};
 
 		await doCommand.run?.(mockContext as any);
@@ -182,7 +182,7 @@ describe("do command", () => {
 		);
 
 		const mockContext = {
-			args: { ids: "abc123" },
+			args: { id: "abc123" },
 		};
 
 		await doCommand.run?.(mockContext as any);
@@ -199,7 +199,7 @@ describe("do command", () => {
 	it("handles invalid short ID", async () => {
 		const consoleErrorSpy = track(spyOn(console, "error"));
 		const mockContext = {
-			args: { ids: "999" },
+			args: { id: "999" },
 		};
 
 		try {
@@ -228,7 +228,7 @@ describe("do command", () => {
 		writeFileSync(testContextFile, JSON.stringify(contextWithDuplicates));
 
 		const mockContext = {
-			args: { ids: "abc123" },
+			args: { id: "abc123" },
 		};
 
 		try {
@@ -241,7 +241,7 @@ describe("do command", () => {
 		}
 
 		expect(consoleErrorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Ambiguous UUID"),
+			expect.stringContaining("Ambiguous task id prefix"),
 		);
 	});
 
@@ -250,7 +250,7 @@ describe("do command", () => {
 		const consoleErrorSpy = track(spyOn(console, "error"));
 
 		const mockContext = {
-			args: { ids: "1" },
+			args: { id: "1" },
 		};
 
 		try {
@@ -263,8 +263,33 @@ describe("do command", () => {
 		}
 
 		expect(consoleErrorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("No task context found"),
+			expect.stringContaining("Short IDs and partial IDs require context"),
 		);
+	});
+
+	it("completes a full UUID without list context", async () => {
+		rmSync(testContextFile);
+		const fullUuid = "11111111-1111-1111-1111-111111111111";
+		const fetchSpy = track(
+			spyOn(globalThis, "fetch").mockResolvedValue(
+				new Response(
+					JSON.stringify({
+						success: true,
+						message: null,
+						data: [{ id: fullUuid, done: true, status: 2 }],
+					}),
+					{ status: 200 },
+				),
+			),
+		);
+
+		await doCommand.run?.({ args: { id: fullUuid } } as any);
+
+		const callArgs = fetchSpy.mock.calls[0];
+		if (!callArgs?.[1]) throw new Error("fetch was not called");
+		const requestBody = JSON.parse(callArgs[1].body as string);
+		expect(requestBody[0].id).toBe(fullUuid);
+		expect(requestBody[0].done).toBe(true);
 	});
 
 	it("handles API error", async () => {
@@ -283,7 +308,7 @@ describe("do command", () => {
 		);
 
 		const mockContext = {
-			args: { ids: "1" },
+			args: { id: "1" },
 		};
 
 		try {
@@ -308,7 +333,7 @@ describe("do command", () => {
 		);
 
 		const mockContext = {
-			args: { ids: "1" },
+			args: { id: "1" },
 		};
 
 		try {
@@ -341,7 +366,7 @@ describe("do command", () => {
 		);
 
 		const mockContext = {
-			args: { ids: "1" },
+			args: { id: "1" },
 		};
 
 		await doCommand.run?.(mockContext as any);
@@ -389,7 +414,7 @@ describe("do command", () => {
 		);
 
 		const mockContext = {
-			args: { ids: ["1", "pqr345"] },
+			args: { id: ["1", "pqr345"] },
 		};
 
 		await doCommand.run?.(mockContext as any);

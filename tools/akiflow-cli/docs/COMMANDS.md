@@ -1,128 +1,64 @@
 # Akiflow CLI Commands Reference
 
-## Task Management
-
-### af ls
-
-List all tasks with optional filters.
+## Tasks
 
 ```bash
-af ls --label "work" --status "active"
-```
-
-### af add
-
-Add a new task with natural language date parsing.
-
-```bash
-af add "Buy groceries" --date "tomorrow" --duration "1h"
-```
-
-### af create
-
-Create explicit Akiflow record types.
-
-```bash
-af create task "Review PR" --date 2026-06-20 --description "Check release notes"
-af create slot "Planning block" --date 2026-06-20 --at 09:00 --duration 1h --task "Draft" --task "Review"
-af create event "Meeting" --date 2026-06-20 --at 13:00 --duration 30m --description "Discuss launch" --location "Office"
-af create event "Rental pickup" --date 2026-06-20 --at 23:55 --duration 45m --description-file rental-details.txt
-```
-
-`af create event` v1 creates timed, non-recurring Google Calendar events through Akiflow. Recurrence, conferencing, reminders, all-day events, and deletes are not supported.
-
-### af event
-
-Update timed Google Calendar events through Akiflow.
-
-```bash
-af event update <event-id> --date 2026-06-20 --at 14:30 --duration 45m --description-file details.txt
-af event attendees add <event-id> julia@example.com alex@example.com
-af event attendees remove <event-id> julia@example.com
-```
-
-`af event update` preserves unspecified fields and attendees, sends Google update notifications, and refuses all-day, recurring, hidden, deleted, read-only, or non-Google events. `af event attendees add|remove` skips no-op attendee changes and supports `--json`.
-
-### af convert
-
-Convert between Akiflow record surfaces. V1 supports only timed Akiflow tasks to Google Calendar events.
-
-```bash
-af convert tasks --to events --search "Portland trip:" --from 2026-06-19 --until 2026-06-23
-af convert tasks --to events --search "Portland trip:" --from 2026-06-19 --until 2026-06-23 --execute --delete-source
-```
-
-The command dry-runs by default. Mutations require `--execute`; source cleanup also requires `--delete-source`. Use `--until` or `--range-to` for the date-range end because `--to` is the target surface.
-
-### af do
-
-Mark a task as complete.
-
-```bash
-af do <task-id>
-```
-
-### af task
-
-Manage task properties.
-
-```bash
-af task edit <task-id> --title "New title"
-af task move <task-id> --project "Work"
-af task plan <task-id> --date "2026-02-15"
-af task snooze <task-id> --duration "2h"
+af task list [--today|--date <date>|--from <date> --to <date>] [--json|--raw]
+af task create <title> [--today|--date <date>] [--at HH:MM] [--duration <duration>]
+af task complete <task-id-or-short-id> [more ids...]
+af task update <task-id> [--title <text>] [--description <text>|--description-file <path>] [--duration <duration>] [--project <project-id>] [--priority 1|2|3]
+af task plan <task-id> [--date <date>] [--at HH:MM]
+af task snooze <task-id> --duration <duration>
 af task delete <task-id>
 ```
 
-## Project Management
+Short IDs come from the last non-JSON `af task list`. Full UUIDs work without list context.
 
-### af project
-
-Manage projects.
+## Events
 
 ```bash
-af project ls
-af project create "New Project"
-af project delete "Project Name"
+af event create <title> --date <date> --at HH:MM --duration <duration> [--calendar <calendar-id>] [--description <text>|--description-file <path>] [--location <text>] [--json]
+af event update <event-id> --date <date> --at HH:MM --duration <duration> [--title <text>] [--description <text>|--description-file <path>] [--location <text>] [--json]
+af event attendees add <event-id> <email> [more emails...] [--json]
+af event attendees remove <event-id> <email> [more emails...] [--json]
 ```
 
-## Calendar & Time Blocking
+Event v1 supports timed, writable, non-recurring Google events only. Delete, all-day, recurrence, reminders, and conferencing are unsupported.
 
-### af cal
-
-View calendar with tasks.
+## Slots
 
 ```bash
-af cal --month "2026-02"
-af cal --from 2026-06-19 --to 2026-06-23 --search "Portland trip:" --summary
+af slot create <title> --date <date> --at HH:MM --duration <duration> [--calendar <calendar-id>] [--task <title>] [--task-id <task-id>] [--task-duration <duration>] [--json]
 ```
 
-### af block
-
-Create time blocks.
+## Calendar
 
 ```bash
-af block 2h "Focus Time"
+af cal [--today|--date <date>|--from <date> --to <date>] [--search <text>] [--summary] [--json|--raw]
+af cal --free
+af cal --no-events
+af cal --no-tasks
+af cal --no-slots
 ```
 
-## Authentication
+`af cal` merges events, task slots, and scheduled tasks.
 
-### af auth
-
-Authenticate with Akiflow.
+## Conversion
 
 ```bash
+af convert tasks --to events [task-list filters] [--default-duration <duration>] [--calendar <calendar-id>]
+af convert tasks --to events [task-list filters] --execute [--delete-source]
+```
+
+Conversion dry-runs by default. Source deletion is only allowed with `--execute --delete-source`.
+
+## Read-Only Projects, Auth, Cache, Diagnostics
+
+```bash
+af project list
 af auth
-```
-
-## Shell Completion
-
-### af completion
-
-Generate shell completion scripts.
-
-```bash
-af completion bash > ~/.bashrc
-af completion zsh > ~/.zshrc
-af completion fish > ~/.config/fish/completions/af.fish
+af auth status
+af refresh [--rebuild] [--json]
+af doctor [--json]
+af completion bash|zsh|fish
 ```

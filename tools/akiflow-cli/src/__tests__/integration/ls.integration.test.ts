@@ -18,18 +18,21 @@ afterEach(async () => {
 	env.cleanup();
 });
 
-describe("af ls (BDD — extended flags after Phase 6)", () => {
+describe("af task list (BDD — extended flags after Phase 6)", () => {
 	test("--connector gmail filters to gmail-sourced", async () => {
-		const result = await spawnCli(["ls", "--connector", "gmail", "--all"], {
-			env: env.env,
-		});
+		const result = await spawnCli(
+			["task", "list", "--connector", "gmail", "--all"],
+			{
+				env: env.env,
+			},
+		);
 		expect(result.exitCode).toBe(0);
 		expect(result.stdout).toContain("Re: project update");
 		expect(result.stdout).not.toContain("Triage notifications");
 	});
 
 	test("--recurring shows only recurring", async () => {
-		const result = await spawnCli(["ls", "--recurring", "--all"], {
+		const result = await spawnCli(["task", "list", "--recurring", "--all"], {
 			env: env.env,
 		});
 		expect(result.exitCode).toBe(0);
@@ -37,12 +40,16 @@ describe("af ls (BDD — extended flags after Phase 6)", () => {
 	});
 
 	test("--trashed shows trashed (assuming none in fixtures, exits 0)", async () => {
-		const result = await spawnCli(["ls", "--trashed"], { env: env.env });
+		const result = await spawnCli(["task", "list", "--trashed"], {
+			env: env.env,
+		});
 		expect(result.exitCode).toBe(0);
 	});
 
 	test("--raw emits full record JSON envelope", async () => {
-		const result = await spawnCli(["ls", "--all", "--raw"], { env: env.env });
+		const result = await spawnCli(["task", "list", "--all", "--raw"], {
+			env: env.env,
+		});
 		expect(result.exitCode).toBe(0);
 		const report = JSON.parse(result.stdout);
 		expect(report).toHaveProperty("result");
@@ -52,9 +59,9 @@ describe("af ls (BDD — extended flags after Phase 6)", () => {
 	});
 });
 
-describe("af ls (BDD — locks current upstream behavior)", () => {
+describe("af task list (BDD — default behavior)", () => {
 	test("default listing prints a today-anchored task", async () => {
-		const result = await spawnCli(["ls"], { env: env.env });
+		const result = await spawnCli(["task", "list"], { env: env.env });
 		// Exit code 0 means the command ran and returned successfully.
 		// Even if upstream filters differ from our fixture date range, the
 		// command should at least exit cleanly with creds + API mocked.
@@ -62,7 +69,7 @@ describe("af ls (BDD — locks current upstream behavior)", () => {
 	});
 
 	test("calls /v5/tasks with Authorization Bearer header", async () => {
-		await spawnCli(["ls"], { env: env.env });
+		await spawnCli(["task", "list"], { env: env.env });
 		const tasksReq = server.requests.find(
 			(r) => r.url.pathname === "/v5/tasks",
 		);

@@ -1,254 +1,111 @@
 ---
 name: akiflow-cli
-description: Manage Akiflow tasks from CLI. Use when creating, listing, completing tasks, managing projects, or viewing calendar/time blocks. Credential extraction from browser—no API keys needed.
+description: Manage Akiflow tasks, calendar events, task slots, and cache state through the private resource-first `af` CLI.
 metadata: {"openclaw":{"emoji":"📋","requires":{"bins":["af"]}}}
 ---
 
 # Akiflow CLI
 
-Manage [Akiflow](https://akiflow.com) tasks directly from the command line.
+Use `af` for Akiflow task and calendar work. Prefer `--json` for reads and parse the cleaned `result` array. Run `af refresh --json` when the user asks for the latest state or after mutations that need verification.
 
-## Why use this?
+Dates are local calendar dates. Use explicit `YYYY-MM-DD` in commands and reports.
 
-| Feature | Web App | Akiflow CLI |
-| --------- | --------- | ------------- |
-| Speed | Browser-based | **Instant from terminal** |
-| OAuth setup | N/A | **Not needed** |
-| API keys | N/A | **Not needed** |
-| Credential source | Manual login | Browser token extraction |
-
-Use this when you want fast task management without leaving your terminal.
-
-## Setup
-
-바이너리 설치됨: `/opt/homebrew/bin/af` (또는 `which af`)
-
-최초 인증:
+## Inspect Tasks
 
 ```bash
-af auth        # Chrome에서 토큰 자동 추출
-af auth status # 인증 상태 확인
+af task list --today --json
+af task list --date 2026-06-19 --json
+af task list --inbox --json
+af task list --search "review" --json
+af task list --from 2026-06-19 --to 2026-06-21 --json
+af task list --all --json
 ```
 
-Credentials 저장 위치: `~/.config/af/credentials.json`
+Useful filters: `--status inbox,planned,done,trashed,active,all`, `--connector gmail|linear|akiflow|none`, `--priority 1|2|3`, `--bucket week|month`, `--recurring`, `--overdue`.
 
----
-
-## 토큰 만료 대처 (중요!)
-
-### 자동 갱신
-
-- CLI가 refresh token으로 자동 갱신 시도
-- 대부분의 경우 사용자 개입 없이 작동
-
-### 수동 재인증이 필요한 경우
-
-**증상:**
-
-- `AuthError: No credentials found` 에러
-- `401 Unauthorized` 응답  
-- API 호출 실패
-
-**대처 순서:**
-
-1. **먼저 Chrome에서 Akiflow 로그인 확인**
-
-   ```bash
-   # Chrome에서 https://web.akiflow.com 접속하여 로그인 상태 확인
-   # 로그아웃 되어있으면 로그인
-   ```
-
-2. **토큰 재추출**
-
-   ```bash
-   af auth
-   # "Found 1 token(s) from: chrome" 메시지 확인
-   ```
-
-3. **인증 상태 확인**
-
-   ```bash
-   af auth status
-   # "Authenticated" 출력되면 성공
-   ```
-
-4. **여전히 실패 시**
-   - Chrome 완전히 종료 후 재시작
-   - Akiflow 웹에서 로그아웃 → 재로그인
-   - `af auth` 다시 실행
-
-### 에러별 대처
-
-| 에러 | 원인 | 해결 |
-| ------ | ------ | ------ |
-| `No credentials found` | 토큰 없음 | `af auth` 실행 |
-| `Token expired` | 만료됨 | Chrome에서 Akiflow 접속 후 `af auth` |
-| `401 Unauthorized` | 토큰 무효 | 위와 동일 |
-| `Network error` | 네트워크 | 인터넷 연결 확인 |
-
----
-
-## Authentication
+## Inspect Calendar
 
 ```bash
-af auth                # Extract credentials from browser
-af auth status         # Check auth status
+af cal --today --json
+af cal --date 2026-06-19 --json
+af cal --from 2026-06-19 --to 2026-06-23 --json
+af cal --from 2026-06-19 --to 2026-06-23 --search "Portland trip:" --summary
+af cal --today --no-events --json
+af cal --today --calendar <calendar-id> --json
 ```
 
----
+`af cal` returns events, time slots, and scheduled tasks. Hidden calendars and hidden/deleted/declined events are excluded by default. Use `--declined` only when asked.
 
-## Task Commands
-
-### List Tasks
+## Create And Schedule
 
 ```bash
-af ls                      # List today's tasks
-af ls --inbox              # List inbox (unscheduled tasks)
-af ls --project "Work"     # List by project
-af ls --all                # List all tasks
+af task create "Task title"
+af task create "Task title" --today
+af task create "Task title" --date 2026-06-19 --at 14:30 --duration 1h
+af task plan <task-id> --date 2026-06-19 --at 14:30
+af task snooze <task-id> --duration 1d
 ```
 
-### Add Tasks
+Use `af slot create` for true Akiflow task slots:
 
 ```bash
-af add "Task title"                          # Add to inbox
-af add "Task title" -t                       # Add for today
-af add "Task title" -d "tomorrow"            # Natural language date
-af add "Task title" -d "next friday 10am"    # Specific date/time
-af add "Task title" --duration "2h"          # With duration
-af add "Task title" --project "Work"         # Assign to project
+af slot create "Planning block" --date 2026-06-19 --at 14:30 --duration 1h
+af slot create "Admin block" --date 2026-06-19 --at 16:00 --duration 45m --task-id <uuid-1> --task-id <uuid-2>
 ```
 
-### Complete Tasks
+Use `af event create` for real timed Google Calendar events:
 
 ```bash
-af do 1                    # Complete by short ID (requires af ls first)
-af do "full-uuid-here"     # Complete by full UUID
+af event create "Meeting" --date 2026-06-19 --at 14:30 --duration 30m --description "Details" --location "Office"
 ```
 
-### Edit Tasks
+`af event create` v1 supports timed, non-recurring Google events only. It accepts optional `--calendar`, `--description`, `--description-file`, `--location`, and `--json`.
+
+## Update Events And Attendees
 
 ```bash
-af task edit 1 --title "New title"       # Edit title
-af task move 1 --project "Personal"      # Move to project
-af task plan 1 -d "tomorrow"             # Reschedule
-af task snooze 1 --duration "2h"         # Snooze
-af task delete 1                         # Delete
+af event update <event-id> --date 2026-06-19 --at 21:45 --duration 1h --description-file details.txt
+af event attendees add <event-id> julia@example.com
+af event attendees remove <event-id> julia@example.com
 ```
 
----
+`af event` refuses all-day, recurring, hidden, deleted, read-only, and non-Google events. Event updates and attendee changes send Google update notifications.
 
-## Project Commands
+## Convert Tasks To Events
+
+Use this when planned task blocks should become real calendar events:
 
 ```bash
-af project ls                    # List all projects
-af project create "Project Name" # Create new project
-af project delete "Project Name" # Delete project
+af convert tasks --to events --search "Portland trip:" --from 2026-06-19 --until 2026-06-23
+af convert tasks --to events --search "Portland trip:" --from 2026-06-19 --until 2026-06-23 --execute --delete-source
 ```
 
----
+Conversion dry-runs by default. Connector-backed tasks require `--include-connector-tasks` and are never deleted by conversion v1.
 
-## Calendar & Time Blocking
+## Complete And Delete Tasks
+
+Complete tasks only when the user explicitly asks:
 
 ```bash
-af cal                           # View today's schedule
-af cal --free                    # Find free time slots
-af cal -d "tomorrow"             # View specific date
-
-af block 1h "Focus time"         # Create 1-hour time block
-af block 2h "Meeting prep" --start "14:00"  # With start time
+af task list --today --plain
+af task complete 1
+af task complete <full-uuid>
 ```
 
----
-
-## Short ID System
-
-Running `af ls` saves task context to `~/.cache/af/last-list.json`. This enables short IDs:
+Short IDs require the last non-JSON `af task list`; full UUIDs do not. Delete only after explicit user confirmation:
 
 ```bash
-af ls                # Shows: [1] Task A, [2] Task B, ...
-af do 1              # Completes Task A
-af task edit 2 --title "Updated"  # Edits Task B
+af task delete <task-id>
 ```
 
-Full UUIDs always work as fallback.
+## Projects And Gaps
 
----
-
-## Common Workflows
-
-### Morning Task Review
+Project listing is read-only:
 
 ```bash
-af ls                          # See today's tasks
-af ls --inbox                  # Check inbox for unscheduled items
-af task plan 3 -d "today"      # Schedule an inbox item for today
+af project list
 ```
 
-### Quick Task Capture
+Known gaps: event delete, all-day events, recurring events, reminders, conferencing, Aki chat messages, and project mutation are unsupported.
 
-```bash
-af add "Review PR #123" -t     # Add to today
-af add "Follow up with client" -d "monday"  # Schedule for next week
-```
-
-### End of Day
-
-```bash
-af ls                          # Review remaining tasks
-af task snooze 2 --duration "1d"   # Push to tomorrow
-af do 1                        # Mark as done
-```
-
-### Time Blocking
-
-```bash
-af cal --free                  # Find available slots
-af block 2h "Deep work" --start "09:00"
-af block 1h "Email" --start "14:00"
-```
-
-### Project Management
-
-```bash
-af project ls                  # List projects
-af ls --project "Work"         # View project tasks
-af add "New feature" --project "Work" -d "friday"
-```
-
----
-
-## Natural Language Dates
-
-Supported formats:
-
-- `today`, `tomorrow`, `yesterday`
-- `monday`, `tuesday`, ... (next occurrence)
-- `next week`, `next month`
-- `in 2 hours`, `in 3 days`
-- `march 15`, `2026-03-15`
-- `friday 10am`, `tomorrow 14:00`
-
----
-
-## Output Format
-
-All commands output human-readable format by default.
-
----
-
-## Troubleshooting
-
-### Token Expired
-
-```bash
-af auth                # Re-extract from browser
-af auth status         # Verify authentication
-```
-
-### Short IDs Not Working
-
-```bash
-af ls                  # Refresh task cache first
-af do 1                # Now works
-```
+For Southwest flight rechecks, use Chrome on `https://www.southwest.com/air/flight-status/path?departureDate=YYYY-MM-DD&flightNumber=N`, trust the rendered Southwest status, then update dependent Akiflow events with `af event update`.

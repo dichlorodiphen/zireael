@@ -72,10 +72,11 @@ describe("completion command", () => {
 		const output = consoleLogSpy.mock.calls
 			.map((c: unknown[]) => c[0])
 			.join("\n");
-		expect(output).toContain("add");
-		expect(output).toContain("ls");
 		expect(output).toContain("task");
+		expect(output).toContain("event");
+		expect(output).toContain("slot");
 		expect(output).toContain("project");
+		expect(output).not.toContain(" hello");
 	});
 
 	it("includes task subcommands in zsh", async () => {
@@ -90,8 +91,10 @@ describe("completion command", () => {
 		const output = consoleLogSpy.mock.calls
 			.map((c: unknown[]) => c[0])
 			.join("\n");
-		expect(output).toContain("edit");
-		expect(output).toContain("move");
+		expect(output).toContain("list");
+		expect(output).toContain("create");
+		expect(output).toContain("complete");
+		expect(output).toContain("update");
 		expect(output).toContain("plan");
 	});
 
@@ -110,7 +113,7 @@ describe("completion command", () => {
 		expect(output).toContain("__fish_seen_subcommand_from project");
 	});
 
-	it("includes add flags in bash", async () => {
+	it("includes task create flags in bash", async () => {
 		// given
 		consoleLogSpy = spyOn(console, "log");
 		const context = { args: { shell: "bash" } } as never;
@@ -126,10 +129,10 @@ describe("completion command", () => {
 		expect(output).toContain("--date");
 	});
 
-	it("includes ls flags in zsh", async () => {
+	it("includes task list flags in bash", async () => {
 		// given
 		consoleLogSpy = spyOn(console, "log");
-		const context = { args: { shell: "zsh" } } as never;
+		const context = { args: { shell: "bash" } } as never;
 
 		// when
 		await completionCommand.run?.(context);
@@ -178,7 +181,7 @@ describe("completion command", () => {
 		expect(output).toContain("#!/bin/bash");
 	});
 
-	it("bash includes installation instructions", async () => {
+	it("bash includes completion registration", async () => {
 		// given
 		consoleLogSpy = spyOn(console, "log");
 		const context = { args: { shell: "bash" } } as never;
@@ -190,11 +193,10 @@ describe("completion command", () => {
 		const output = consoleLogSpy.mock.calls
 			.map((c: unknown[]) => c[0])
 			.join("\n");
-		expect(output).toContain("Installation:");
-		expect(output).toContain("~/.bashrc");
+		expect(output).toContain("complete -o bashdefault");
 	});
 
-	it("zsh includes installation instructions", async () => {
+	it("zsh includes completion registration", async () => {
 		// given
 		consoleLogSpy = spyOn(console, "log");
 		const context = { args: { shell: "zsh" } } as never;
@@ -206,11 +208,11 @@ describe("completion command", () => {
 		const output = consoleLogSpy.mock.calls
 			.map((c: unknown[]) => c[0])
 			.join("\n");
-		expect(output).toContain("Installation:");
-		expect(output).toContain("~/.zsh/completions/_af");
+		expect(output).toContain("#compdef af");
+		expect(output).toContain("_af");
 	});
 
-	it("fish includes installation instructions", async () => {
+	it("fish includes completion registration", async () => {
 		// given
 		consoleLogSpy = spyOn(console, "log");
 		const context = { args: { shell: "fish" } } as never;
@@ -222,9 +224,6 @@ describe("completion command", () => {
 		const output = consoleLogSpy.mock.calls
 			.map((c: unknown[]) => c[0])
 			.join("\n");
-		expect(output).toContain("Installation:");
-		expect(output).toContain(
-			"/usr/local/share/fish/vendor_completions.d/af.fish",
-		);
+		expect(output).toContain("complete -c af");
 	});
 });

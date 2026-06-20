@@ -11,7 +11,7 @@ beforeEach(async () => {
 	server = new FakeAkiflowServer();
 	await server.start();
 	loadAllFixtures(server);
-	// Echo back the upserted task(s) so `af add` sees data to confirm creation
+	// Echo back the upserted task(s) so `af task create` sees data to confirm creation
 	server.respondTo("PATCH", "/v5/tasks", ({ body }: { body: string }) => {
 		const upserts = JSON.parse(body) as Array<Record<string, unknown>>;
 		return { success: true, message: null, data: upserts };
@@ -23,9 +23,11 @@ afterEach(async () => {
 	env.cleanup();
 });
 
-describe("af add (BDD — locks current upstream behavior)", () => {
+describe("af task create (BDD)", () => {
 	test("creates a task via PATCH /v5/tasks with the given title", async () => {
-		const result = await spawnCli(["add", "Test new task"], { env: env.env });
+		const result = await spawnCli(["task", "create", "Test new task"], {
+			env: env.env,
+		});
 		if (result.exitCode !== 0) {
 			console.error("STDOUT:", result.stdout);
 			console.error("STDERR:", result.stderr);
