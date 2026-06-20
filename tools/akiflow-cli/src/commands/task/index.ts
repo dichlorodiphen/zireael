@@ -13,6 +13,7 @@ import {
 	parseDuration,
 	parseDurationToSeconds,
 } from "../../lib/duration-parser";
+import { removePendingTask } from "../../lib/task-cache";
 import { readTaskContext, resolveTaskId } from "../../lib/task-context";
 import { createTaskCommand } from "../create";
 import { taskCompleteCommand } from "../do";
@@ -378,6 +379,7 @@ export const taskDeleteCommand = defineCommand({
 			const response = await client.upsertTasks([updatePayload]);
 
 			if (response.success) {
+				await removePendingTask(taskId);
 				console.log(`✓ Deleted task "${id}"`);
 			} else {
 				console.error("Error: Failed to delete task");
