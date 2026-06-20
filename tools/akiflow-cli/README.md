@@ -6,8 +6,8 @@ Private Bun-native CLI for managing Akiflow tasks, calendar events, task slots, 
 
 - **Resource-first commands** - `af task`, `af event`, `af slot`, `af calendar`, `af project`, `af cal`
 - **Task management** - list, create, complete, update, plan, snooze, delete
-- **Calendar events** - create/update timed Google events and add/remove attendees through Akiflow
-- **Task slots** - create true Akiflow task slots, optionally with linked tasks
+- **Calendar events** - create/update/delete timed Google events and add/remove attendees through Akiflow
+- **Task slots** - create/delete true Akiflow task slots, optionally with linked tasks
 - **Conversion** - convert scheduled task blocks into Google Calendar events
 - **Local sync cache** - JSONL stores at `~/.cache/af/` with delta sync and rebuild support
 - **Stable JSON output** - cleaned `--json` shapes for task and calendar reads; `--raw` for API records
@@ -61,11 +61,14 @@ af event create "Meeting" --date 2026-06-20 --at 13:00 --duration 30m \
 af event update <event-id> --date 2026-06-20 --at 14:30 --duration 45m \
   --title "Updated meeting" --description-file details.txt
 
+af event delete <event-id>
+af event delete <event-id> --notify none
+
 af event attendees add <event-id> julia@example.com alex@example.com
 af event attendees remove <event-id> julia@example.com
 ```
 
-Event v1 supports cached, timed, non-recurring, writable Google Calendar events only. It does not support event delete, recurrence, all-day events, reminders, or conferencing. Event updates and attendee changes send Google update notifications through Akiflow.
+Event v1 supports cached, timed, non-recurring, writable Google Calendar events only. It does not support recurrence, all-day events, reminders, or conferencing. Event updates, attendee changes, and deletes send Google update notifications through Akiflow by default; use `af event delete --notify none` for disposable cleanup.
 
 ### Slots
 
@@ -75,6 +78,8 @@ af slot create "Planning block" --date 2026-06-20 --at 09:00 --duration 1h \
 
 af slot create "Admin" --date 2026-06-20 --at 15:00 --duration 45m \
   --task-id task-uuid-1 --task-id task-uuid-2
+
+af slot delete <slot-id>
 ```
 
 ### Calendar

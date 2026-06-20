@@ -90,6 +90,43 @@ describe("af event (BDD)", () => {
 		expect(payload[0].end_time).toBe(expectedEnd);
 	});
 
+	test("deletes a cached timed event through the captured v3 events endpoint", async () => {
+		const testEnv = { ...env.env, TZ: "UTC" };
+		const refresh = await spawnCli(["refresh", "--rebuild", "--json"], {
+			env: testEnv,
+		});
+		expect(refresh.exitCode).toBe(0);
+
+		const result = await spawnCli(
+			["event", "delete", "event-meeting-1", "--notify", "none", "--json"],
+			{ env: testEnv },
+		);
+
+		expect(result.exitCode).toBe(0);
+		const deletedEvent = JSON.parse(result.stdout);
+		expect(deletedEvent.id).toBe("event-meeting-1");
+		expect(deletedEvent.status).toBe("cancelled");
+		expect(deletedEvent.deleted_at).toEqual(expect.any(String));
+
+		const request = server.requests.find(
+			(r) => r.method === "POST" && r.url.pathname === "/v3/events",
+		);
+		expect(request).toBeDefined();
+		const payload = JSON.parse(request!.body);
+		expect(payload[0]).toEqual(
+			expect.objectContaining({
+				id: "event-meeting-1",
+				status: "cancelled",
+				deleted_at: expect.any(String),
+				global_updated_at: expect.any(String),
+				content: { sendUpdates: "none" },
+			}),
+		);
+		expect(payload[0].data).toBeUndefined();
+		expect(payload[0].fingerprints).toBeUndefined();
+		expect(payload[0].user_id).toBeUndefined();
+	});
+
 	test("adds attendee emails through the captured event modifiers endpoint", async () => {
 		const testEnv = { ...env.env, TZ: "UTC" };
 		const refresh = await spawnCli(["refresh", "--rebuild", "--json"], {

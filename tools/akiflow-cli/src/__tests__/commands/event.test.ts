@@ -6,7 +6,9 @@ import {
 	attendeeAddCommand,
 	attendeeRemoveCommand,
 	buildAttendeeModifierPayload,
+	buildEventDeletePayload,
 	buildEventUpdatePayload,
+	eventDeleteCommand,
 	eventUpdateCommand,
 	resolveCachedEvent,
 	validateMutableTimedGoogleEvent,
@@ -136,6 +138,28 @@ describe("event command", () => {
 		expect(payload.user_id).toBeUndefined();
 	});
 
+	it("builds a delete payload that cancels the event and strips local-only fields", () => {
+		const source = event();
+		const payload = buildEventDeletePayload({
+			event: source,
+			notify: "none",
+			now: "2026-06-19T12:00:00.000Z",
+		}) as unknown as Record<string, unknown>;
+
+		expect(payload.id).toBe("event-123456");
+		expect(payload.status).toBe("cancelled");
+		expect(payload.deleted_at).toBe("2026-06-19T12:00:00.000Z");
+		expect(payload.global_updated_at).toBe("2026-06-19T12:00:00.000Z");
+		expect(payload.content).toEqual({
+			location: "Old gate",
+			color: "blue",
+			sendUpdates: "none",
+		});
+		expect(payload.data).toBeUndefined();
+		expect(payload.fingerprints).toBeUndefined();
+		expect(payload.user_id).toBeUndefined();
+	});
+
 	it("updates a cached event through /v3/events", async () => {
 		const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
 		const expectedStart = new Date(2026, 5, 20, 10, 0).toISOString();
@@ -194,6 +218,89 @@ describe("event command", () => {
 		expect(payload[0].user_id).toBeUndefined();
 		expect(consoleLogSpy).toHaveBeenCalledWith(
 			"✓ Akiflow calendar event updated successfully",
+		);
+
+		consoleLogSpy.mockRestore();
+	});
+
+	it("deletes a cached event through /v3/events and notifies by default", async () => {
+		const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
+		fetchSpy.mockResolvedValueOnce(
+			new Response(
+				JSON.stringify({
+					success: true,
+					message: null,
+					data: [
+						{
+							...event(),
+							status: "cancelled",
+							deleted_at: "2026-06-20T00:00:00.000Z",
+						},
+					],
+				}),
+				{ status: 200 },
+			),
+		);
+
+		await eventDeleteCommand.run!({
+			args: {
+				id: "event-123",
+				_: [],
+			},
+			rawArgs: [],
+		} as any);
+
+		expect(fetchSpy).toHaveBeenCalledTimes(1);
+		expect(fetchSpy.mock.calls[0]?.[0]).toBe(
+			"https://api.akiflow.com/v3/events",
+		);
+		const payload = JSON.parse(fetchSpy.mock.calls[0]?.[1]?.body as string);
+		expect(payload[0]).toEqual(
+			expect.objectContaining({
+				id: "event-123456",
+				status: "cancelled",
+				content: { location: "Old gate", color: "blue", sendUpdates: "all" },
+				deleted_at: expect.any(String),
+				global_updated_at: expect.any(String),
+			}),
+		);
+		expect(payload[0].data).toBeUndefined();
+		expect(payload[0].fingerprints).toBeUndefined();
+		expect(payload[0].user_id).toBeUndefined();
+		expect(consoleLogSpy).toHaveBeenCalledWith(
+			"✓ Akiflow calendar event deleted successfully",
+		);
+
+		consoleLogSpy.mockRestore();
+	});
+
+	it("supports silent event delete and JSON output", async () => {
+		const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
+		fetchSpy.mockResolvedValueOnce(
+			new Response(
+				JSON.stringify({
+					success: true,
+					message: null,
+					data: [{ id: "event-123456", status: "cancelled" }],
+				}),
+				{ status: 200 },
+			),
+		);
+
+		await eventDeleteCommand.run!({
+			args: {
+				id: "event-123456",
+				notify: "none",
+				json: true,
+				_: [],
+			},
+			rawArgs: [],
+		} as any);
+
+		const payload = JSON.parse(fetchSpy.mock.calls[0]?.[1]?.body as string);
+		expect(payload[0].content.sendUpdates).toBe("none");
+		expect(consoleLogSpy).toHaveBeenCalledWith(
+			JSON.stringify({ id: "event-123456", status: "cancelled" }, null, 2),
 		);
 
 		consoleLogSpy.mockRestore();

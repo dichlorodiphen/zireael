@@ -124,6 +124,10 @@ const COMMANDS: Record<string, CommandNode> = {
 					"--json",
 				],
 			},
+			delete: {
+				description: "Soft-delete a timed Google calendar event",
+				flags: ["--notify", "--json"],
+			},
 			attendees: {
 				description: "Manage event attendees",
 				subcommands: {
@@ -156,6 +160,10 @@ const COMMANDS: Record<string, CommandNode> = {
 					"--task-duration",
 					"--json",
 				],
+			},
+			delete: {
+				description: "Soft-delete an Akiflow task slot",
+				flags: ["--json"],
 			},
 		},
 	},

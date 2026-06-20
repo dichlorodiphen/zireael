@@ -146,6 +146,22 @@ describe("completion command", () => {
 		expect(output).toContain("--all");
 	});
 
+	it("includes event and slot delete commands in bash", async () => {
+		// given
+		consoleLogSpy = spyOn(console, "log");
+		const context = { args: { shell: "bash" } } as never;
+
+		// when
+		await completionCommand.run?.(context);
+
+		// then
+		const output = consoleLogSpy.mock.calls
+			.map((c: unknown[]) => c[0])
+			.join("\n");
+		expect(output).toContain("delete");
+		expect(output).toContain("--notify");
+	});
+
 	it("rejects invalid shell", async () => {
 		// given
 		consoleErrorSpy = spyOn(console, "error");

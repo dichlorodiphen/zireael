@@ -174,6 +174,30 @@ export function buildEventUpdatePayload({
 	return payload as unknown as CreateEventPayload;
 }
 
+export function buildEventDeletePayload({
+	event,
+	notify = "all",
+	now = new Date().toISOString(),
+}: {
+	event: Event;
+	notify?: "all" | "none";
+	now?: string;
+}): CreateEventPayload {
+	const payload = cloneEventForUpdate(event);
+	const content =
+		event.content && typeof event.content === "object"
+			? { ...event.content }
+			: {};
+
+	content.sendUpdates = notify;
+	payload.status = "cancelled";
+	payload.content = content;
+	payload.deleted_at = now;
+	payload.global_updated_at = now;
+
+	return payload as unknown as CreateEventPayload;
+}
+
 function normalizeEmail(value: string): string {
 	return value.trim().toLowerCase();
 }
@@ -384,6 +408,56 @@ export const eventUpdateCommand = defineCommand({
 	},
 });
 
+export const eventDeleteCommand = defineCommand({
+	meta: {
+		name: "delete",
+		description: "Soft-delete a timed Google calendar event",
+	},
+	args: {
+		id: {
+			type: "positional",
+			description: "Event id or unique id prefix",
+			required: true,
+		},
+		notify: {
+			type: "string",
+			description: "Google attendee notification mode: all or none",
+			default: "all",
+		},
+		json: {
+			type: "boolean",
+			description: "Output deleted event as JSON",
+		},
+	},
+	run: async (context) => {
+		const client = createClient();
+		const args = context.args as Record<string, unknown>;
+		const notify = String(args.notify ?? "all");
+		if (notify !== "all" && notify !== "none") {
+			fail(`Invalid --notify "${notify}". Expected "all" or "none".`);
+		}
+
+		const events = await readResource(client, "events");
+		const event = resolveCachedEvent(events, args.id as string);
+		validateMutableTimedGoogleEvent(event);
+
+		const payload = buildEventDeletePayload({ event, notify });
+		const response = await client.createEvents([payload]);
+		const deletedEvent = response.data[0];
+		if (!deletedEvent) fail("Failed to delete event - no data returned");
+
+		if (args.json === true) {
+			console.log(JSON.stringify(deletedEvent, null, 2));
+			return;
+		}
+
+		console.log("✓ Akiflow calendar event deleted successfully");
+		console.log(`  ID: ${deletedEvent.id}`);
+		console.log(`  Title: ${deletedEvent.title ?? event.title ?? ""}`);
+		console.log(`  Notify: ${notify}`);
+	},
+});
+
 async function runAttendeeCommand(
 	args: Record<string, unknown>,
 	mode: "add" | "remove",
@@ -519,6 +593,7 @@ export const eventCommand = defineCommand({
 	subCommands: {
 		create: createEventCommand,
 		update: eventUpdateCommand,
+		delete: eventDeleteCommand,
 		attendees: eventAttendeesCommand,
 	},
 });

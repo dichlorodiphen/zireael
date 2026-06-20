@@ -19,16 +19,18 @@ Short IDs come from the last non-JSON `af task list`. Full UUIDs work without li
 ```bash
 af event create <title> --date <date> --at HH:MM --duration <duration> [--calendar <calendar>] [--description <text>|--description-file <path>] [--location <text>] [--json]
 af event update <event-id> --date <date> --at HH:MM --duration <duration> [--title <text>] [--description <text>|--description-file <path>] [--location <text>] [--json]
+af event delete <event-id> [--notify all|none] [--json]
 af event attendees add <event-id> <email> [more emails...] [--json]
 af event attendees remove <event-id> <email> [more emails...] [--json]
 ```
 
-Event v1 supports timed, writable, non-recurring Google events only. Delete, all-day, recurrence, reminders, and conferencing are unsupported.
+Event v1 supports timed, writable, non-recurring Google events only. All-day, recurrence, reminders, and conferencing are unsupported. Event delete defaults to `--notify all`; use `--notify none` for disposable cleanup.
 
 ## Slots
 
 ```bash
 af slot create <title> --date <date> --at HH:MM --duration <duration> [--calendar <calendar>] [--task <title>] [--task-id <task-id>] [--task-duration <duration>] [--json]
+af slot delete <slot-id> [--json]
 ```
 
 ## Calendar
