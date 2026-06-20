@@ -38,33 +38,23 @@ describe("create command", () => {
 	it("creates a task slot and linked child tasks", async () => {
 		// given
 		const consoleLogSpy = spyOn(console, "log");
+		readResourceSpy.mockResolvedValue([
+			{
+				id: "cal-123",
+				akiflow_account_id: "akiflow-account-1",
+				akiflow_primary: true,
+				primary: true,
+				connector_id: "google",
+				origin_id: "person@example.com",
+				origin_account_id: "google-account-1",
+				title: "Personal",
+				color: "#7986cb",
+				read_only: false,
+				hidden_at: null,
+				deleted_at: null,
+			},
+		] as any);
 		fetchSpy
-			.mockResolvedValueOnce(
-				new Response(
-					JSON.stringify({
-						success: true,
-						message: null,
-						data: [
-							{
-								id: "existing-slot",
-								calendar_id: "cal-123",
-								start_time: "2026-06-20T15:00:00.000Z",
-								end_time: "2026-06-20T16:00:00.000Z",
-								start_datetime_tz: "America/Los_Angeles",
-								status: "confirmed",
-								title: "Existing",
-								description: null,
-								content: {},
-								data: {},
-								global_created_at: "2026-06-20T00:00:00.000Z",
-								global_updated_at: "2026-06-20T00:00:00.000Z",
-								deleted_at: null,
-							},
-						],
-					}),
-					{ status: 200 },
-				),
-			)
 			.mockResolvedValueOnce(
 				new Response(
 					JSON.stringify({
@@ -134,23 +124,20 @@ describe("create command", () => {
 		} as any);
 
 		// then
-		expect(fetchSpy).toHaveBeenCalledTimes(3);
+		expect(fetchSpy).toHaveBeenCalledTimes(2);
 		expect(fetchSpy.mock.calls[0]?.[0]).toBe(
-			"https://api.akiflow.com/v5/time_slots?limit=10",
-		);
-		expect(fetchSpy.mock.calls[1]?.[0]).toBe(
 			"https://api.akiflow.com/v5/time_slots",
 		);
-		expect(fetchSpy.mock.calls[2]?.[0]).toBe(
+		expect(fetchSpy.mock.calls[1]?.[0]).toBe(
 			"https://api.akiflow.com/v5/tasks",
 		);
 
-		const slotPayload = JSON.parse(fetchSpy.mock.calls[1]?.[1]?.body as string);
+		const slotPayload = JSON.parse(fetchSpy.mock.calls[0]?.[1]?.body as string);
 		expect(slotPayload[0].calendar_id).toBe("cal-123");
 		expect(slotPayload[0].title).toBe("Planning block");
 		expect(slotPayload[0].description).toBe("Deep work");
 
-		const taskPayload = JSON.parse(fetchSpy.mock.calls[2]?.[1]?.body as string);
+		const taskPayload = JSON.parse(fetchSpy.mock.calls[1]?.[1]?.body as string);
 		expect(taskPayload).toHaveLength(2);
 		expect(taskPayload.map((t: { title: string }) => t.title)).toEqual([
 			"Draft",
@@ -306,7 +293,7 @@ describe("create command", () => {
 		consoleLogSpy.mockRestore();
 	});
 
-	it("uses an explicit calendar id and prints JSON output", async () => {
+	it("uses an explicit calendar title and prints JSON output", async () => {
 		// given
 		const consoleLogSpy = spyOn(console, "log");
 		readResourceSpy.mockResolvedValue([
@@ -357,7 +344,7 @@ describe("create command", () => {
 				date: "2026-06-20",
 				at: "10:00",
 				duration: "30m",
-				calendar: "cal-explicit",
+				calendar: "Explicit",
 				json: true,
 				_: [],
 			},

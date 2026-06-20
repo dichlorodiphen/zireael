@@ -76,6 +76,7 @@ describe("completion command", () => {
 		expect(output).toContain("event");
 		expect(output).toContain("slot");
 		expect(output).toContain("project");
+		expect(output).toContain("calendar");
 		expect(output).not.toContain(" hello");
 	});
 

@@ -242,7 +242,7 @@ describe("cal command", () => {
 		consoleLogSpy.mockRestore();
 	});
 
-	it("filters events, slots, and scheduled tasks by --calendar", async () => {
+	it("filters events, slots, and scheduled tasks by resolved --calendar", async () => {
 		// given
 		mockMergedCalendarData({
 			calendars: [
@@ -324,7 +324,7 @@ describe("cal command", () => {
 			args: {
 				free: false,
 				date: "2026-06-22",
-				calendar: "cal1",
+				calendar: "Primary",
 				json: true,
 				_: [],
 			} as never,

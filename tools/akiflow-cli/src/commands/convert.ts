@@ -8,6 +8,10 @@ import type {
 } from "../lib/api/types";
 import { readResource } from "../lib/cache";
 import {
+	CalendarResolutionError,
+	resolveEventTargetCalendar,
+} from "../lib/calendar";
+import {
 	endOfDay,
 	type NamedRange,
 	parseDateBoundary,
@@ -22,7 +26,7 @@ import {
 	type StatusName,
 	type TaskFilter,
 } from "../lib/filters/task";
-import { buildCreateEventPayload, resolveCreateEventCalendar } from "./create";
+import { buildCreateEventPayload } from "./create";
 
 const NAMED_RANGE_FLAGS: ReadonlyArray<NamedRange> = [
 	"today",
@@ -183,7 +187,7 @@ function buildExistingEventMap(events: Event[]): Map<string, Event> {
 function buildCandidates(
 	tasks: Task[],
 	existingEvents: Event[],
-	calendar: Awaited<ReturnType<typeof resolveCreateEventCalendar>>,
+	calendar: Awaited<ReturnType<typeof resolveEventTargetCalendar>>,
 	defaultDurationSeconds: number | null,
 ): ConversionCandidate[] {
 	const existing = buildExistingEventMap(existingEvents);
@@ -307,7 +311,7 @@ export const convertTasksCommand = defineCommand({
 		calendar: {
 			type: "string",
 			description:
-				"Akiflow calendar id; defaults to writable primary Google calendar",
+				"Calendar id, origin id, or unique title; defaults to writable primary Google calendar",
 		},
 		search: {
 			type: "string",
@@ -378,10 +382,20 @@ export const convertTasksCommand = defineCommand({
 			process.exit(1);
 		}
 
-		const calendar = await resolveCreateEventCalendar(
-			client,
-			rawArgs.calendar as string | undefined,
-		);
+		let calendar: Awaited<ReturnType<typeof resolveEventTargetCalendar>>;
+		try {
+			calendar = await resolveEventTargetCalendar(
+				client,
+				rawArgs.calendar as string | undefined,
+				"af convert tasks --to events",
+			);
+		} catch (error) {
+			if (error instanceof CalendarResolutionError) {
+				console.error(`Error: ${error.message}`);
+				process.exit(1);
+			}
+			throw error;
+		}
 		const candidates = buildCandidates(
 			selectedTasks,
 			events,

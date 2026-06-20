@@ -4,7 +4,7 @@ Private Bun-native CLI for managing Akiflow tasks, calendar events, task slots, 
 
 ## Features
 
-- **Resource-first commands** - `af task`, `af event`, `af slot`, `af project`, `af cal`
+- **Resource-first commands** - `af task`, `af event`, `af slot`, `af calendar`, `af project`, `af cal`
 - **Task management** - list, create, complete, update, plan, snooze, delete
 - **Calendar events** - create/update timed Google events and add/remove attendees through Akiflow
 - **Task slots** - create true Akiflow task slots, optionally with linked tasks
@@ -80,22 +80,27 @@ af slot create "Admin" --date 2026-06-20 --at 15:00 --duration 45m \
 ### Calendar
 
 ```bash
+af calendar list
+af calendar list --json
+af calendar default
+af calendar resolve "Personal"
+
 af cal --today
 af cal --from 2026-06-19 --to 2026-06-23 --json
 af cal --from 2026-06-19 --to 2026-06-23 --search "Portland" --summary
 af cal --today --no-events
-af cal --today --calendar <calendar-id>
+af cal --today --calendar "Personal"
 af cal --free
 ```
 
-The merged calendar view includes events, time slots, and scheduled tasks. Hidden calendars and hidden/deleted/declined events are excluded by default.
+`af calendar` lists and resolves calendar metadata. Calendar arguments accept an Akiflow calendar ID, origin calendar/email, or unique title. The merged `af cal` view includes events, time slots, and scheduled tasks. Hidden calendars and hidden/deleted/declined events are excluded by default.
 
 ### Conversion
 
 ```bash
 af convert tasks --to events --search "Portland trip:" --from 2026-06-19 --until 2026-06-23
 af convert tasks --to events --search "Portland trip:" --from 2026-06-19 --until 2026-06-23 \
-  --execute --delete-source
+  --calendar "Personal" --execute --delete-source
 ```
 
 Conversion dry-runs by default. `--execute` creates missing events; `--delete-source` soft-deletes native source tasks only after all selected targets are created or matched. Connector-backed tasks require `--include-connector-tasks` and are never deleted by conversion v1.

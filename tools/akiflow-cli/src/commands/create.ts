@@ -8,8 +8,12 @@ import type {
 	CreateTimeSlotPayload,
 	UpdateTaskPayload,
 } from "../lib/api/types";
-import { readResource } from "../lib/cache";
-import { getDefaultCalendarId } from "../lib/calendar";
+import {
+	CalendarResolutionError,
+	getDefaultCalendarId,
+	resolveEventTargetCalendar,
+	resolveWritableCalendar,
+} from "../lib/calendar";
 import {
 	createDateTimeUTC,
 	getLocalTimezone,
@@ -54,56 +58,6 @@ function resolveTime(date: string, timeInput: string): string {
 	}
 
 	return createDateTimeUTC(date, parsedTime.hours, parsedTime.minutes);
-}
-
-export function isWritableVisibleCalendar(calendar: Calendar): boolean {
-	return (
-		!calendar.read_only &&
-		calendar.hidden_at == null &&
-		calendar.deleted_at == null
-	);
-}
-
-export function isPrimaryCalendar(calendar: Calendar): boolean {
-	return calendar.akiflow_primary === true || calendar.primary === true;
-}
-
-export async function resolveCreateEventCalendar(
-	client: ReturnType<typeof createClient>,
-	calendarId: string | undefined,
-): Promise<Calendar> {
-	const calendars = await readResource(client, "calendars");
-	const calendar = calendarId
-		? calendars.find((c) => c.id === calendarId)
-		: calendars.find(
-				(c) => isWritableVisibleCalendar(c) && isPrimaryCalendar(c),
-			);
-
-	if (!calendar) {
-		const reason = calendarId
-			? `Calendar "${calendarId}" was not found in the Akiflow calendar cache.`
-			: "Could not determine a writable primary calendar from the Akiflow calendar cache.";
-		console.error(
-			`Error: ${reason} Pass --calendar <calendar_id> explicitly or run af refresh.`,
-		);
-		process.exit(1);
-	}
-
-	if (!isWritableVisibleCalendar(calendar)) {
-		console.error(
-			`Error: Calendar "${calendar.id}" is read-only, hidden, or deleted. Pass a writable --calendar <calendar_id>.`,
-		);
-		process.exit(1);
-	}
-
-	if (calendar.connector_id !== "google") {
-		console.error(
-			`Error: af event create supports Google calendars only in v1. Calendar "${calendar.id}" uses connector "${calendar.connector_id}".`,
-		);
-		process.exit(1);
-	}
-
-	return calendar;
 }
 
 export interface BuildEventPayloadInput {
@@ -223,6 +177,12 @@ async function resolveProjectId(projectName: string | undefined) {
 	}
 
 	return label.id;
+}
+
+function failCalendarResolution(error: unknown): never {
+	const message = error instanceof Error ? error.message : String(error);
+	console.error(`Error: ${message}`);
+	process.exit(1);
 }
 
 export const createTaskCommand = defineCommand({
@@ -379,7 +339,7 @@ export const createSlotCommand = defineCommand({
 		calendar: {
 			type: "string",
 			description:
-				"Akiflow calendar id; defaults to the current default calendar",
+				"Calendar id, origin id, or unique title; defaults to the writable primary calendar",
 		},
 		task: {
 			type: "string",
@@ -419,22 +379,23 @@ export const createSlotCommand = defineCommand({
 		const endTime = new Date(
 			new Date(startTime).getTime() + durationSeconds * 1000,
 		).toISOString();
-		const calendarId =
-			(args.calendar as string | undefined) ??
-			(await getDefaultCalendarId(client));
-
-		if (!calendarId) {
-			console.error(
-				"Error: Could not determine calendar id. Pass --calendar <id> explicitly.",
+		let calendar: Calendar;
+		try {
+			calendar = await resolveWritableCalendar(
+				client,
+				args.calendar as string | undefined,
 			);
-			process.exit(1);
+		} catch (error) {
+			if (error instanceof CalendarResolutionError)
+				failCalendarResolution(error);
+			throw error;
 		}
 
 		const now = new Date().toISOString();
 		const slotId = crypto.randomUUID();
 		const slotPayload: CreateTimeSlotPayload = {
 			id: slotId,
-			calendar_id: calendarId,
+			calendar_id: calendar.id,
 			status: "confirmed",
 			title,
 			description: description ?? null,
@@ -555,7 +516,7 @@ export const createEventCommand = defineCommand({
 		calendar: {
 			type: "string",
 			description:
-				"Akiflow calendar id; defaults to the writable primary Google calendar",
+				"Calendar id, origin id, or unique title; defaults to the writable primary Google calendar",
 		},
 		description: {
 			type: "string",
@@ -598,10 +559,18 @@ export const createEventCommand = defineCommand({
 		const endTime = new Date(
 			new Date(startTime).getTime() + durationSeconds * 1000,
 		).toISOString();
-		const calendar = await resolveCreateEventCalendar(
-			client,
-			args.calendar as string | undefined,
-		);
+		let calendar: Calendar;
+		try {
+			calendar = await resolveEventTargetCalendar(
+				client,
+				args.calendar as string | undefined,
+				"af event create",
+			);
+		} catch (error) {
+			if (error instanceof CalendarResolutionError)
+				failCalendarResolution(error);
+			throw error;
+		}
 		const eventPayload = buildCreateEventPayload({
 			title,
 			description,

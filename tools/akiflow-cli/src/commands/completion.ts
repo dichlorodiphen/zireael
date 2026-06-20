@@ -217,6 +217,23 @@ const COMMANDS: Record<string, CommandNode> = {
 			},
 		},
 	},
+	calendar: {
+		description: "Inspect and resolve Akiflow calendars",
+		subcommands: {
+			list: {
+				description: "List calendars",
+				flags: ["--json", "--all"],
+			},
+			default: {
+				description: "Show default event calendar",
+				flags: ["--json"],
+			},
+			resolve: {
+				description: "Resolve a calendar",
+				flags: ["--json"],
+			},
+		},
+	},
 	cal: {
 		description: "View calendar timeline",
 		flags: [

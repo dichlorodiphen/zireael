@@ -1,95 +1,159 @@
-import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
-import { AkiflowClient } from "../../lib/api/client";
-import type { TimeSlot } from "../../lib/api/types";
-import { getDefaultCalendarId } from "../../lib/calendar";
+import { afterEach, describe, expect, it, spyOn } from "bun:test";
+import type { Calendar } from "../../lib/api/types";
+import * as cache from "../../lib/cache";
+import {
+	CalendarResolutionError,
+	findDefaultEventCalendar,
+	getDefaultCalendarId,
+	isGoogleCalendar,
+	isPrimaryCalendar,
+	isVisibleActiveCalendar,
+	isWritableVisibleCalendar,
+	resolveCalendarFromList,
+} from "../../lib/calendar";
 
-describe("getDefaultCalendarId", () => {
-	let mockGetTimeSlots: ReturnType<typeof spyOn>;
+function calendar(overrides: Partial<Calendar> = {}): Calendar {
+	return {
+		id: "cal-personal",
+		user_id: 1,
+		akiflow_account_id: "akiflow-account-1",
+		akiflow_primary: true,
+		primary: true,
+		connector_id: "google",
+		origin_id: "person@example.com",
+		origin_account_id: "google-account-1",
+		title: "Personal",
+		description: null,
+		timezone: "America/Los_Angeles",
+		color: "#7986cb",
+		icon: null,
+		read_only: false,
+		hidden_at: null,
+		url: null,
+		sync_status: null,
+		last_synced_at: null,
+		clear_job_id: null,
+		settings: {},
+		content: {},
+		data: {},
+		fingerprints: {},
+		etag: null,
+		global_created_at: "2026-06-19T00:00:00.000Z",
+		global_updated_at: "2026-06-19T00:00:00.000Z",
+		deleted_at: null,
+		...overrides,
+	};
+}
 
-	beforeEach(() => {
-		mockGetTimeSlots = spyOn(AkiflowClient.prototype, "getTimeSlots");
-	});
+describe("calendar helpers", () => {
+	let readResourceSpy: ReturnType<typeof spyOn> | undefined;
 
 	afterEach(() => {
-		mockGetTimeSlots.mockRestore();
+		readResourceSpy?.mockRestore();
+		readResourceSpy = undefined;
 	});
 
-	it("returns calendar_id from first time slot", async () => {
-		// given
-		const mockTimeSlots: TimeSlot[] = [
-			{
-				id: "1",
-				user_id: 1,
-				recurring_id: null,
-				calendar_id: "cal-123",
-				label_id: null,
-				section_id: null,
-				status: "confirmed",
-				title: "Test event",
-				description: null,
-				original_start_time: null,
-				start_time: new Date().toISOString(),
-				end_time: new Date().toISOString(),
-				start_datetime_tz: new Date().toISOString(),
-				recurrence: null,
-				color: null,
-				content: {},
-				global_label_id_updated_at: null,
-				global_created_at: new Date().toISOString(),
-				global_updated_at: new Date().toISOString(),
-				data: {},
-				deleted_at: null,
-			},
+	it("identifies writable visible primary Google calendars", () => {
+		const personal = calendar();
+
+		expect(isVisibleActiveCalendar(personal)).toBe(true);
+		expect(isWritableVisibleCalendar(personal)).toBe(true);
+		expect(isPrimaryCalendar(personal)).toBe(true);
+		expect(isGoogleCalendar(personal)).toBe(true);
+		expect(findDefaultEventCalendar([personal])?.id).toBe("cal-personal");
+	});
+
+	it("resolves by id, origin id, exact title, then unique title substring", () => {
+		const calendars = [
+			calendar({
+				id: "cal-id",
+				origin_id: "person@example.com",
+				title: "Personal",
+			}),
+			calendar({
+				id: "cal-work",
+				origin_id: "work@example.com",
+				title: "Work Calendar",
+				primary: false,
+				akiflow_primary: false,
+			}),
 		];
 
-		mockGetTimeSlots.mockResolvedValue({
-			success: true,
-			message: null,
-			data: mockTimeSlots,
-		});
-
-		const client = new AkiflowClient({
-			credentials: { token: "test", clientId: "test" },
-		});
-
-		// when
-		const result = await getDefaultCalendarId(client);
-
-		// then
-		expect(result).toBe("cal-123");
+		expect(resolveCalendarFromList(calendars, "cal-id").id).toBe("cal-id");
+		expect(resolveCalendarFromList(calendars, "work@example.com").id).toBe(
+			"cal-work",
+		);
+		expect(resolveCalendarFromList(calendars, "personal").id).toBe("cal-id");
+		expect(resolveCalendarFromList(calendars, "work").id).toBe("cal-work");
 	});
 
-	it("returns null when no time slots exist", async () => {
-		// given
-		mockGetTimeSlots.mockResolvedValue({
-			success: true,
-			message: null,
-			data: [],
-		});
+	it("rejects ambiguous title matches with candidates", () => {
+		const calendars = [
+			calendar({ id: "cal-1", title: "Team Calendar" }),
+			calendar({
+				id: "cal-2",
+				title: "Team Planning",
+				primary: false,
+				akiflow_primary: false,
+			}),
+		];
 
-		const client = new AkiflowClient({
-			credentials: { token: "test", clientId: "test" },
-		});
-
-		// when
-		const result = await getDefaultCalendarId(client);
-
-		// then
-		expect(result).toBeNull();
+		expect(() => resolveCalendarFromList(calendars, "Team")).toThrow(
+			CalendarResolutionError,
+		);
+		expect(() => resolveCalendarFromList(calendars, "Team")).toThrow(
+			"ambiguous",
+		);
 	});
 
-	it("returns null when API call fails", async () => {
-		// given
-		mockGetTimeSlots.mockRejectedValue(new Error("API error"));
-
-		const client = new AkiflowClient({
-			credentials: { token: "test", clientId: "test" },
+	it("excludes hidden and deleted calendars unless requested", () => {
+		const hidden = calendar({
+			id: "hidden-cal",
+			title: "Hidden",
+			hidden_at: "2026-06-19T00:00:00.000Z",
+		});
+		const deleted = calendar({
+			id: "deleted-cal",
+			title: "Deleted",
+			deleted_at: "2026-06-19T00:00:00.000Z",
 		});
 
-		// when
-		const result = await getDefaultCalendarId(client);
+		expect(() => resolveCalendarFromList([hidden], "hidden-cal")).toThrow(
+			"not found",
+		);
+		expect(
+			resolveCalendarFromList([hidden], "hidden-cal", { includeHidden: true })
+				.id,
+		).toBe("hidden-cal");
+		expect(() => resolveCalendarFromList([deleted], "deleted-cal")).toThrow(
+			"not found",
+		);
+		expect(
+			resolveCalendarFromList([deleted], "deleted-cal", {
+				includeDeleted: true,
+			}).id,
+		).toBe("deleted-cal");
+	});
 
-		// then
-		expect(result).toBeNull();
+	it("returns the default writable primary calendar id from the cache", async () => {
+		readResourceSpy = spyOn(cache, "readResource").mockResolvedValue([
+			calendar({
+				id: "read-only-primary",
+				read_only: true,
+			}),
+			calendar({
+				id: "default-cal",
+				title: "Default",
+				read_only: false,
+			}),
+		] as any);
+
+		const result = await getDefaultCalendarId({} as any);
+
+		expect(result).toBe("default-cal");
+		expect(readResourceSpy).toHaveBeenCalledWith(
+			expect.anything(),
+			"calendars",
+		);
 	});
 });

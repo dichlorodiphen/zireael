@@ -17,7 +17,7 @@ Short IDs come from the last non-JSON `af task list`. Full UUIDs work without li
 ## Events
 
 ```bash
-af event create <title> --date <date> --at HH:MM --duration <duration> [--calendar <calendar-id>] [--description <text>|--description-file <path>] [--location <text>] [--json]
+af event create <title> --date <date> --at HH:MM --duration <duration> [--calendar <calendar>] [--description <text>|--description-file <path>] [--location <text>] [--json]
 af event update <event-id> --date <date> --at HH:MM --duration <duration> [--title <text>] [--description <text>|--description-file <path>] [--location <text>] [--json]
 af event attendees add <event-id> <email> [more emails...] [--json]
 af event attendees remove <event-id> <email> [more emails...] [--json]
@@ -28,25 +28,30 @@ Event v1 supports timed, writable, non-recurring Google events only. Delete, all
 ## Slots
 
 ```bash
-af slot create <title> --date <date> --at HH:MM --duration <duration> [--calendar <calendar-id>] [--task <title>] [--task-id <task-id>] [--task-duration <duration>] [--json]
+af slot create <title> --date <date> --at HH:MM --duration <duration> [--calendar <calendar>] [--task <title>] [--task-id <task-id>] [--task-duration <duration>] [--json]
 ```
 
 ## Calendar
 
 ```bash
+af calendar list [--json] [--all]
+af calendar default [--json]
+af calendar resolve <calendar> [--json]
+
 af cal [--today|--date <date>|--from <date> --to <date>] [--search <text>] [--summary] [--json|--raw]
+af cal --calendar <calendar>
 af cal --free
 af cal --no-events
 af cal --no-tasks
 af cal --no-slots
 ```
 
-`af cal` merges events, task slots, and scheduled tasks.
+`af calendar` lists and resolves calendar metadata. Calendar arguments accept an Akiflow calendar ID, origin calendar/email, or unique title. `af cal` merges events, task slots, and scheduled tasks.
 
 ## Conversion
 
 ```bash
-af convert tasks --to events [task-list filters] [--default-duration <duration>] [--calendar <calendar-id>]
+af convert tasks --to events [task-list filters] [--default-duration <duration>] [--calendar <calendar>]
 af convert tasks --to events [task-list filters] --execute [--delete-source]
 ```
 

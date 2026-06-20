@@ -9,6 +9,10 @@ import type {
 } from "../lib/api/types";
 import { readResource } from "../lib/cache";
 import {
+	CalendarResolutionError,
+	resolveCalendarFromList,
+} from "../lib/calendar";
+import {
 	endOfDay,
 	formatLocalDate,
 	type NamedRange,
@@ -197,6 +201,7 @@ function hasExtendedCalFlags(args: Record<string, unknown>): boolean {
 
 function buildEventFilter(
 	args: Record<string, unknown>,
+	calendarId?: string,
 ): EventFilter & { range: { from: Date; to: Date } } {
 	const f: EventFilter = {};
 	const named = NAMED_RANGE_FLAGS.find((n) => args[n]);
@@ -219,7 +224,7 @@ function buildEventFilter(
 
 	f.from = range.from;
 	f.to = range.to;
-	if (args.calendar) f.calendar = args.calendar as string;
+	if (calendarId) f.calendar = calendarId;
 	if (args.account) f.account = args.account as string;
 	if (args.connector) f.connector = args.connector as string;
 	if (args.declined) f.includeDeclined = true;
@@ -295,6 +300,17 @@ async function runMergedCalendar(args: Record<string, unknown>): Promise<void> {
 		calendarsPromise,
 	]);
 
+	let resolvedCalendarId: string | undefined;
+	if (args.calendar) {
+		const calendar = resolveCalendarFromList(
+			calendars,
+			args.calendar as string,
+			{ includeDeleted: true, includeHidden: true },
+		);
+		resolvedCalendarId = calendar.id;
+	}
+	const filter = { ...ef, calendar: resolvedCalendarId ?? ef.calendar };
+
 	const activeCalendarIds = new Set(
 		calendars.filter((c) => c.deleted_at == null).map((c) => c.id),
 	);
@@ -308,7 +324,7 @@ async function runMergedCalendar(args: Record<string, unknown>): Promise<void> {
 	const eventsFiltered = filterEvents(eventsResp.data, {
 		from: ef.from,
 		to: ef.to,
-		calendar: ef.calendar,
+		calendar: filter.calendar,
 		account: ef.account,
 		connector: ef.connector,
 		includeDeclined: ef.includeDeclined,
@@ -324,7 +340,7 @@ async function runMergedCalendar(args: Record<string, unknown>): Promise<void> {
 	const slotsFiltered = slotsResp.data.filter((s) => {
 		const t = new Date(s.start_time).getTime();
 		if (t < fromMs || t > toMs) return false;
-		if (ef.calendar && s.calendar_id !== ef.calendar) return false;
+		if (filter.calendar && s.calendar_id !== filter.calendar) return false;
 		return true;
 	});
 
@@ -333,7 +349,7 @@ async function runMergedCalendar(args: Record<string, unknown>): Promise<void> {
 		if (!t.datetime) return false;
 		const ts = new Date(t.datetime).getTime();
 		if (ts < fromMs || ts > toMs) return false;
-		if (ef.calendar && t.calendar_id !== ef.calendar) return false;
+		if (filter.calendar && t.calendar_id !== filter.calendar) return false;
 		return true;
 	});
 
@@ -458,7 +474,10 @@ export const cal = defineCommand({
 		from: { type: "string", description: "Start date" },
 		to: { type: "string", description: "End date" },
 		// Resource filters
-		calendar: { type: "string", description: "Filter by calendar id" },
+		calendar: {
+			type: "string",
+			description: "Filter by calendar id, origin id, or unique title",
+		},
 		account: { type: "string", description: "Filter by akiflow_account_id" },
 		connector: { type: "string", description: "google | microsoft | icloud" },
 		search: {
@@ -511,6 +530,8 @@ export const cal = defineCommand({
 				console.error(
 					"Error: Authentication failed. Please run 'af auth' to login.",
 				);
+			} else if (error instanceof CalendarResolutionError) {
+				console.error(`Error: ${error.message}`);
 			} else {
 				console.error(
 					"Error: Failed to fetch calendar",

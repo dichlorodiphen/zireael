@@ -233,6 +233,7 @@ describe("convert tasks command", () => {
 				to: "events",
 				execute: true,
 				"delete-source": true,
+				calendar: "Personal",
 				_: [],
 			},
 			rawArgs: [],

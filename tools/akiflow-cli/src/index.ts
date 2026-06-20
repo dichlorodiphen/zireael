@@ -4,6 +4,7 @@ import pkg from "../package.json" with { type: "json" };
 import { authCommand } from "./commands/auth";
 import { cacheCommand } from "./commands/cache";
 import { cal } from "./commands/cal";
+import { calendarCommand } from "./commands/calendar";
 import { completionCommand } from "./commands/completion";
 import { convertCommand } from "./commands/convert";
 import { doctorCommand } from "./commands/doctor";
@@ -33,6 +34,7 @@ const main = defineCommand({
 		slot: slotCommand,
 		convert: convertCommand,
 		cal,
+		calendar: calendarCommand,
 		project: projectCommand,
 		auth: authCommand,
 		cache: cacheCommand,
