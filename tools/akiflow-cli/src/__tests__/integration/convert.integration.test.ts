@@ -59,6 +59,7 @@ function convertTaskFixture() {
 beforeEach(async () => {
 	server = new FakeAkiflowServer();
 	await server.start();
+	loadAllFixtures(server);
 	server.respondTo("GET", "/v5/tasks", {
 		success: true,
 		message: null,
@@ -89,7 +90,6 @@ beforeEach(async () => {
 			data: payload,
 		};
 	});
-	loadAllFixtures(server);
 	env = makeTestEnv(server.url);
 });
 
@@ -169,6 +169,7 @@ describe("af convert tasks --to events (BDD)", () => {
 		await server.stop();
 		server = new FakeAkiflowServer();
 		await server.start();
+		loadAllFixtures(server);
 		server.respondTo("GET", "/v5/tasks", {
 			success: true,
 			message: null,
@@ -194,7 +195,6 @@ describe("af convert tasks --to events (BDD)", () => {
 			message: null,
 			data: [],
 		});
-		loadAllFixtures(server);
 		env.cleanup();
 		env = makeTestEnv(server.url);
 		const testEnv = { ...env.env, TZ: "UTC" };

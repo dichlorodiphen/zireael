@@ -30,6 +30,24 @@ describe("FakeAkiflowServer", () => {
 		expect(body.sync_token).toBe("tok1");
 	});
 
+	test("uses the latest registered responder for an endpoint", async () => {
+		await server.start();
+		server.respondTo("GET", "/v5/tasks", {
+			success: true,
+			message: null,
+			data: [{ id: "old" }],
+		});
+		server.respondTo("GET", "/v5/tasks", {
+			success: true,
+			message: null,
+			data: [{ id: "new" }],
+		});
+
+		const resp = await fetch(`${server.url}/v5/tasks`);
+		const body = (await resp.json()) as { data: unknown[] };
+		expect(body.data).toEqual([{ id: "new" }]);
+	});
+
 	test("returns 404 when no canned response", async () => {
 		await server.start();
 		const resp = await fetch(`${server.url}/v5/tasks`);

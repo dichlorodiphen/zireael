@@ -146,6 +146,14 @@ const COMMANDS: Record<string, CommandNode> = {
 	slot: {
 		description: "Manage Akiflow task slots",
 		subcommands: {
+			list: {
+				description: "List cached Akiflow task slots",
+				flags: ["-s", "--search", "--date", "--from", "--until", "--json"],
+			},
+			show: {
+				description: "Show a cached Akiflow task slot",
+				flags: ["--json"],
+			},
 			create: {
 				description: "Create an Akiflow task slot",
 				flags: [
@@ -158,6 +166,19 @@ const COMMANDS: Record<string, CommandNode> = {
 					"--task",
 					"--task-id",
 					"--task-duration",
+					"--json",
+				],
+			},
+			update: {
+				description: "Update an Akiflow task slot",
+				flags: [
+					"--title",
+					"--date",
+					"--at",
+					"--duration",
+					"--calendar",
+					"--add-task-id",
+					"--remove-task-id",
 					"--json",
 				],
 			},

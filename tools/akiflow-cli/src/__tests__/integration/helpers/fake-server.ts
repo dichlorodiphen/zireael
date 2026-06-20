@@ -42,9 +42,17 @@ export class FakeAkiflowServer {
 				});
 				this.requests.push({ method: req.method, url, headers, body });
 
-				const r = this.responders.find(
-					(r) => r.method === req.method && r.path === url.pathname,
-				);
+				let r: Responder | undefined;
+				for (let i = this.responders.length - 1; i >= 0; i -= 1) {
+					const candidate = this.responders[i];
+					if (
+						candidate?.method === req.method &&
+						candidate.path === url.pathname
+					) {
+						r = candidate;
+						break;
+					}
+				}
 				if (!r) return new Response("Not Found", { status: 404 });
 				const value =
 					typeof r.response === "function"

@@ -29,9 +29,14 @@ Event v1 supports timed, writable, non-recurring Google events only. All-day, re
 ## Slots
 
 ```bash
+af slot list [--date <date>|--from <date> --until <date>] [--search <text>] [--json]
+af slot show <slot-id> [--json]
 af slot create <title> --date <date> --at HH:MM --duration <duration> [--calendar <calendar>] [--task <title>] [--task-id <task-id>] [--task-duration <duration>] [--json]
+af slot update <slot-id> [--title <text>] [--date <date>] [--at HH:MM] [--duration <duration>] [--calendar <calendar>] [--add-task-id <task-id>] [--remove-task-id <task-id>] [--json]
 af slot delete <slot-id> [--json]
 ```
+
+Slot update moves/resizes/renames a true Akiflow task slot and can link or unlink existing tasks. It does not create new tasks; use `af slot create --task` for that.
 
 ## Calendar
 

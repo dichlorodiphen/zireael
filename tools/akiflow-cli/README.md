@@ -7,7 +7,7 @@ Private Bun-native CLI for managing Akiflow tasks, calendar events, task slots, 
 - **Resource-first commands** - `af task`, `af event`, `af slot`, `af calendar`, `af project`, `af cal`
 - **Task management** - list, create, complete, update, plan, snooze, delete
 - **Calendar events** - create/update/delete timed Google events and add/remove attendees through Akiflow
-- **Task slots** - create/delete true Akiflow task slots, optionally with linked tasks
+- **Task slots** - list, show, create, update, and delete true Akiflow task slots with linked tasks
 - **Conversion** - convert scheduled task blocks into Google Calendar events
 - **Local sync cache** - JSONL stores at `~/.cache/af/` with delta sync and rebuild support
 - **Stable JSON output** - cleaned `--json` shapes for task and calendar reads; `--raw` for API records
@@ -73,14 +73,24 @@ Event v1 supports cached, timed, non-recurring, writable Google Calendar events 
 ### Slots
 
 ```bash
+af slot list --date 2026-06-20
+af slot list --from 2026-06-19 --until 2026-06-23 --search "Planning" --json
+af slot show <slot-id> --json
+
 af slot create "Planning block" --date 2026-06-20 --at 09:00 --duration 1h \
   --task "Draft plan" --task "Review notes" --task-duration 30m
 
 af slot create "Admin" --date 2026-06-20 --at 15:00 --duration 45m \
   --task-id task-uuid-1 --task-id task-uuid-2
 
+af slot update <slot-id> --date 2026-06-20 --at 10:00 --duration 45m
+af slot update <slot-id> --add-task-id task-uuid-1
+af slot update <slot-id> --remove-task-id task-uuid-1
+
 af slot delete <slot-id>
 ```
+
+`af slot update` moves, resizes, renames, or changes existing task membership for a true Akiflow task slot. It does not create new tasks during update.
 
 ### Calendar
 

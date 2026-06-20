@@ -162,6 +162,24 @@ describe("completion command", () => {
 		expect(output).toContain("--notify");
 	});
 
+	it("includes slot lifecycle flags in bash", async () => {
+		// given
+		consoleLogSpy = spyOn(console, "log");
+		const context = { args: { shell: "bash" } } as never;
+
+		// when
+		await completionCommand.run?.(context);
+
+		// then
+		const output = consoleLogSpy.mock.calls
+			.map((c: unknown[]) => c[0])
+			.join("\n");
+		expect(output).toContain("update");
+		expect(output).toContain("--add-task-id");
+		expect(output).toContain("--remove-task-id");
+		expect(output).toContain("--until");
+	});
+
 	it("rejects invalid shell", async () => {
 		// given
 		consoleErrorSpy = spyOn(console, "error");
