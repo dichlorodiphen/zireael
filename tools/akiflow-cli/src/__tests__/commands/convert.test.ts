@@ -271,6 +271,50 @@ describe("convert tasks command", () => {
 		consoleLogSpy.mockRestore();
 	});
 
+	it("accepts v3 event responses without a success flag", async () => {
+		fetchSpy
+			.mockResolvedValueOnce(
+				new Response(
+					JSON.stringify({
+						message: null,
+						data: [{ id: "created-event" }],
+					}),
+					{ status: 200 },
+				),
+			)
+			.mockResolvedValueOnce(
+				new Response(
+					JSON.stringify({
+						success: true,
+						message: null,
+						data: [{ id: "task-1", deleted_at: "2026-06-19T00:00:00.000Z" }],
+					}),
+					{ status: 200 },
+				),
+			);
+		const consoleLogSpy = spyOn(console, "log");
+
+		await convertTasksCommand.run!({
+			args: {
+				to: "events",
+				execute: true,
+				"delete-source": true,
+				_: [],
+			},
+			rawArgs: [],
+		} as any);
+
+		expect(fetchSpy).toHaveBeenCalledTimes(2);
+		expect(fetchSpy.mock.calls[0]?.[0]).toBe(
+			"https://api.akiflow.com/v3/events",
+		);
+		expect(fetchSpy.mock.calls[1]?.[0]).toBe(
+			"https://api.akiflow.com/v5/tasks",
+		);
+
+		consoleLogSpy.mockRestore();
+	});
+
 	it("skips duplicate event creation and can delete matched source tasks", async () => {
 		readResourceSpy.mockImplementation((_client: unknown, resource: string) => {
 			if (resource === "tasks") return Promise.resolve([task()]);

@@ -262,6 +262,7 @@ describe("event command", () => {
 				{ start_time: null, end_time: null, start_date: "2026-06-20" },
 			],
 			["recurring", { recurring_id: "recurring-1" }],
+			["recurrence rule", { recurrence: ["RRULE:FREQ=DAILY"] }],
 			["read-only", { read_only: true }],
 			["non-Google", { connector_id: "microsoft" }],
 		];
@@ -285,6 +286,12 @@ describe("event command", () => {
 			processExitSpy.mockRestore();
 			void label;
 		}
+	});
+
+	it("accepts Google-synced non-recurring events with empty recurrence arrays", () => {
+		expect(() =>
+			validateMutableTimedGoogleEvent(event({ recurrence: [] })),
+		).not.toThrow();
 	});
 
 	it("builds attendee modifier payloads for additions", () => {

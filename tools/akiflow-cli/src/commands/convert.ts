@@ -405,7 +405,7 @@ export const convertTasksCommand = defineCommand({
 			const response = await client.createEvents(
 				toCreate.map((candidate) => candidate.payload),
 			);
-			if (!response.success || response.data.length !== toCreate.length) {
+			if (response.data.length !== toCreate.length) {
 				console.error(
 					"Error: Failed to create all target events; source tasks were not deleted.",
 				);

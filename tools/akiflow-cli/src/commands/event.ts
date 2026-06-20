@@ -108,7 +108,9 @@ export function validateMutableTimedGoogleEvent(event: Event): void {
 	if (
 		event.recurring_id ||
 		event.origin_recurring_id ||
-		event.recurrence ||
+		(Array.isArray(event.recurrence)
+			? event.recurrence.length > 0
+			: event.recurrence) ||
 		event.recurrence_exception
 	) {
 		fail(
