@@ -188,6 +188,109 @@ const COMMANDS: Record<string, CommandNode> = {
 			},
 		},
 	},
+	batch: {
+		description: "Safely mutate selected Akiflow resources in bulk",
+		subcommands: {
+			events: {
+				description: "Batch mutate selected timed Google events",
+				subcommands: {
+					attendees: {
+						description: "Batch manage event attendees",
+						subcommands: {
+							add: {
+								description: "Add attendee emails to selected events",
+								flags: [
+									"-s",
+									"--search",
+									"--today",
+									"--tomorrow",
+									"--yesterday",
+									"--this-week",
+									"--next-week",
+									"--this-month",
+									"--next-month",
+									"--date",
+									"--from",
+									"--to",
+									"--calendar",
+									"--account",
+									"--connector",
+									"--declined",
+									"--execute",
+									"--json",
+								],
+							},
+							remove: {
+								description: "Remove attendee emails from selected events",
+								flags: [
+									"-s",
+									"--search",
+									"--today",
+									"--tomorrow",
+									"--yesterday",
+									"--this-week",
+									"--next-week",
+									"--this-month",
+									"--next-month",
+									"--date",
+									"--from",
+									"--to",
+									"--calendar",
+									"--account",
+									"--connector",
+									"--declined",
+									"--execute",
+									"--json",
+								],
+							},
+						},
+					},
+					delete: {
+						description: "Soft-delete selected events",
+						flags: [
+							"-s",
+							"--search",
+							"--today",
+							"--tomorrow",
+							"--yesterday",
+							"--this-week",
+							"--next-week",
+							"--this-month",
+							"--next-month",
+							"--date",
+							"--from",
+							"--to",
+							"--calendar",
+							"--account",
+							"--connector",
+							"--declined",
+							"--notify",
+							"--execute",
+							"--json",
+						],
+					},
+				},
+			},
+			slots: {
+				description: "Batch mutate selected Akiflow task slots",
+				subcommands: {
+					delete: {
+						description: "Soft-delete selected task slots",
+						flags: [
+							"-s",
+							"--search",
+							"--date",
+							"--from",
+							"--until",
+							"--calendar",
+							"--execute",
+							"--json",
+						],
+					},
+				},
+			},
+		},
+	},
 	convert: {
 		description: "Convert between Akiflow surfaces",
 		subcommands: {
@@ -311,40 +414,55 @@ function subcommandNames(node: CommandNode | undefined): string[] {
 	return Object.keys(node?.subcommands ?? {});
 }
 
+function collectCommandPaths(
+	commands: Record<string, CommandNode>,
+	prefix: string[] = [],
+): Array<{ path: string[]; node: CommandNode }> {
+	const paths: Array<{ path: string[]; node: CommandNode }> = [];
+	for (const [name, node] of Object.entries(commands)) {
+		const path = [...prefix, name];
+		paths.push({ path, node });
+		if (node.subcommands) {
+			paths.push(...collectCommandPaths(node.subcommands, path));
+		}
+	}
+	return paths;
+}
+
+function bashPathCondition(path: string[]): string {
+	return path
+		.map(
+			(segment, index) => `"${"${words["}${index + 1}${"]}"}" == "${segment}"`,
+		)
+		.join(" && ");
+}
+
 function generateBashCompletion(): string {
 	const commands = Object.keys(COMMANDS).join(" ");
-	const cases = Object.entries(COMMANDS)
-		.map(([name, node]) => {
-			const subs = subcommandNames(node).join(" ");
-			const flags = (node.flags ?? []).join(" ");
-			const nested = Object.entries(node.subcommands ?? {})
-				.map(([subName, subNode]) => {
-					const nestedSubs = subcommandNames(subNode).join(" ");
-					const nestedFlags = (subNode.flags ?? []).join(" ");
-					return `
-  if [[ "$main_cmd" == "${name}" && "$sub_cmd" == "${subName}" ]]; then
-    COMPREPLY=($(compgen -W "${nestedSubs || nestedFlags}" -- "$cur"))
+	const cases = collectCommandPaths(COMMANDS)
+		.sort((a, b) => b.path.length - a.path.length)
+		.map(({ path, node }) => {
+			const suggestions = [
+				...subcommandNames(node),
+				...(node.flags ?? []),
+			].join(" ");
+			if (!suggestions) return "";
+			const nextIndex = path.length + 1;
+			return `
+  if [[ ${bashPathCondition(path)} && $cword -ge ${nextIndex} ]]; then
+    COMPREPLY=($(compgen -W "${suggestions}" -- "$cur"))
     return 0
   fi`;
-				})
-				.join("");
-			return `
-  if [[ "$main_cmd" == "${name}" && $cword -eq 2 ]]; then
-    COMPREPLY=($(compgen -W "${subs || flags}" -- "$cur"))
-    return 0
-  fi${nested}`;
 		})
 		.join("");
 
 	return `#!/bin/bash
 _af_completion() {
-  local cur words cword main_cmd sub_cmd
+  local cur words cword
   COMPREPLY=()
   cur="\${COMP_WORDS[COMP_CWORD]}"
   words=("\${COMP_WORDS[@]}")
   cword=$COMP_CWORD
-  main_cmd="\${words[1]}"
-  sub_cmd="\${words[2]}"
 
   if [[ $cword -eq 1 ]]; then
     COMPREPLY=($(compgen -W "${commands}" -- "$cur"))

@@ -4,10 +4,11 @@ Private Bun-native CLI for managing Akiflow tasks, calendar events, task slots, 
 
 ## Features
 
-- **Resource-first commands** - `af task`, `af event`, `af slot`, `af calendar`, `af project`, `af cal`
+- **Resource-first commands** - `af task`, `af event`, `af slot`, `af batch`, `af calendar`, `af project`, `af cal`
 - **Task management** - list, create, complete, update, plan, snooze, delete
 - **Calendar events** - create/update/delete timed Google events and add/remove attendees through Akiflow
 - **Task slots** - list, show, create, update, and delete true Akiflow task slots with linked tasks
+- **Batch operations** - dry-run-first bulk attendee, event delete, and slot delete workflows
 - **Conversion** - convert scheduled task blocks into Google Calendar events
 - **Local sync cache** - JSONL stores at `~/.cache/af/` with delta sync and rebuild support
 - **Stable JSON output** - cleaned `--json` shapes for task and calendar reads; `--raw` for API records
@@ -69,6 +70,21 @@ af event attendees remove <event-id> julia@example.com
 ```
 
 Event v1 supports cached, timed, non-recurring, writable Google Calendar events only. It does not support recurrence, all-day events, reminders, or conferencing. Event updates, attendee changes, and deletes send Google update notifications through Akiflow by default; use `af event delete --notify none` for disposable cleanup.
+
+### Batch Operations
+
+```bash
+af batch events attendees add julia@example.com \
+  --search "Portland trip:" --from 2026-06-19 --to 2026-06-23
+af batch events attendees add julia@example.com \
+  --search "Portland trip:" --from 2026-06-19 --to 2026-06-23 --execute
+
+af batch events attendees remove julia@example.com --date 2026-06-20 --search "Portland" --execute
+af batch events delete --date 2026-06-20 --search "Test event" --notify none --execute
+af batch slots delete --from 2026-06-19 --until 2026-06-23 --search "Temp" --execute
+```
+
+`af batch` is the preferred surface for selector-based mutations. It requires at least one selector, dry-runs by default, and only mutates with `--execute`. Event batches support cached, timed, non-recurring, writable Google Calendar events; unsupported selected records are reported as skipped.
 
 ### Slots
 

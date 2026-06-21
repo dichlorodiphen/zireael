@@ -2,6 +2,7 @@
 import { defineCommand, runMain } from "citty";
 import pkg from "../package.json" with { type: "json" };
 import { authCommand } from "./commands/auth";
+import { batchCommand } from "./commands/batch";
 import { cacheCommand } from "./commands/cache";
 import { cal } from "./commands/cal";
 import { calendarCommand } from "./commands/calendar";
@@ -32,6 +33,7 @@ const main = defineCommand({
 		task: taskCommand,
 		event: eventCommand,
 		slot: slotCommand,
+		batch: batchCommand,
 		convert: convertCommand,
 		cal,
 		calendar: calendarCommand,

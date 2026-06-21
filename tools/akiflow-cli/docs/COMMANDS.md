@@ -26,6 +26,17 @@ af event attendees remove <event-id> <email> [more emails...] [--json]
 
 Event v1 supports timed, writable, non-recurring Google events only. All-day, recurrence, reminders, and conferencing are unsupported. Event delete defaults to `--notify all`; use `--notify none` for disposable cleanup.
 
+## Batch Operations
+
+```bash
+af batch events attendees add <email> [more emails...] [event selectors] [--execute] [--json]
+af batch events attendees remove <email> [more emails...] [event selectors] [--execute] [--json]
+af batch events delete [event selectors] [--notify all|none] [--execute] [--json]
+af batch slots delete [slot selectors] [--execute] [--json]
+```
+
+Batch commands require at least one selector and dry-run by default. Event selectors include `--date`, `--from/--to`, `--search`, `--calendar`, `--account`, `--connector`, and named ranges. Slot selectors include `--date`, `--from/--until`, `--search`, and `--calendar`.
+
 ## Slots
 
 ```bash
